@@ -68,12 +68,10 @@ class api(object):
         response = self.api.do_get_player_pos(player=player, limit=limit, cb=cb)
         return response
 
-    # 存在问题，不建议使用
     def do_set_player_data(self, player, entry, data, cb=None):
         response = self.api.do_set_player_data(player=player, entry=entry, data=data, cb=cb)
         return response
 
-    # 存在问题，不建议使用
     def do_get_player_data(self, player, entry, cb=None):
         response = self.api.do_get_player_data(player=player, entry=entry, cb=cb)
         return response
