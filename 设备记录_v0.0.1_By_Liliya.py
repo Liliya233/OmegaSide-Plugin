@@ -7,6 +7,7 @@ from API_By_Liliya import api
 class deviceRecord:
     def record(self, player, device):
         self.api.set_player_data(player, "DeviceID", device)
+        return
 
     def on_add_player(self, packet):
         # 写入数据
