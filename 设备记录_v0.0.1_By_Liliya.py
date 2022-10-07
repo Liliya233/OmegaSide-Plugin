@@ -6,11 +6,12 @@ from API_By_Liliya import api
 
 class deviceRecord:
     def record(self, player, device):
+        # 写入数据
         self.api.set_player_data(player, "DeviceID", device)
         return
 
     def on_add_player(self, packet):
-        # 写入数据
+        # 或许需要在新线程里执行
         self.api.execute_in_individual_thread(self.record, packet.Username, packet.DeviceID)
         return
 
