@@ -24,6 +24,7 @@ class infoPlugin(object):
         self.api.do_send_player_msg(player, f"§l■§e在线： §r{self.api.get_player_score(player, 'online')}")
         self.api.do_send_player_msg(player, f"§l■§e家园ID： §r{self.api.get_player_score(player, '家园_主人ID')}")
         self.api.do_send_player_msg(player, f"§l■§e结晶碎片： §r{self.api.get_player_score(player, 'money')}")
+        self.api.do_send_player_msg(player, f"§l■§e重生星石： §r{self.api.get_player_score(player, 'RevivalCoin')}")
         # 输出尾部
         self.api.do_send_player_msg(player, "§l§aINFORMATION - 显示完毕")
         return
