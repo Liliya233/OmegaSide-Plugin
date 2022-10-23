@@ -9,116 +9,88 @@ class api(object):
         self.json_lock = threading.Lock()
 
     def execute_after(self, func, *args, delay_time):
-        response = self.api.execute_after(func, *args, delay_time=delay_time)
-        return response
+        return self.api.execute_after(func, *args, delay_time=delay_time)
 
     def execute_with_repeat(self, func, *args, repeat_time):
-        response = self.api.execute_with_repeat(func, *args, repeat_time=repeat_time)
-        return response
+        return self.api.execute_with_repeat(func, *args, repeat_time=repeat_time)
 
     def execute_in_individual_thread(self, func, *args):
-        response = self.api.execute_in_individual_thread(func, *args)
-        return response
+        return self.api.execute_in_individual_thread(func, *args)
 
     def do_echo(self, msg, cb=None):
-        response = self.api.do_echo(msg=msg, cb=cb)
-        return response
+        return self.api.do_echo(msg=msg, cb=cb)
 
     def do_send_ws_cmd(self, cmd, cb=None):
-        response = self.api.do_send_ws_cmd(cmd=cmd, cb=cb)
-        return response
+        return self.api.do_send_ws_cmd(cmd=cmd, cb=cb)
 
     def do_send_player_cmd(self, cmd, cb=None):
-        response = self.api.do_send_player_cmd(cmd=cmd, cb=cb)
-        return response
+        return self.api.do_send_player_cmd(cmd=cmd, cb=cb)
 
     def do_send_wo_cmd(self, cmd, cb=None):
-        response = self.api.do_send_wo_cmd(cmd=cmd, cb=cb)
-        return response
+        return self.api.do_send_wo_cmd(cmd=cmd, cb=cb)
 
     def do_get_uqholder(self, cb=None):
-        response = self.api.do_get_uqholder(cb=cb)
-        return response
+        return self.api.do_get_uqholder(cb=cb)
 
     def do_get_players_list(self, cb=None):
-        response = self.api.do_get_players_list(cb=cb)
-        return response
+        return self.api.do_get_players_list(cb=cb)
 
     def do_get_get_player_next_param_input(self, player, hint="", cb=None):
-        response = self.api.do_get_get_player_next_param_input(player=player, hint=hint, cb=cb)
-        return response
+        return self.api.do_get_get_player_next_param_input(player=player, hint=hint, cb=cb)
 
     def do_send_player_msg(self, player, msg, cb=None):
-        response = self.api.do_send_player_msg(player=player, msg=msg, cb=cb)
-        return response
+        return self.api.do_send_player_msg(player=player, msg=msg, cb=cb)
 
     def do_set_player_title(self, player, msg, cb=None):
-        response = self.api.do_set_player_title(player=player, msg=msg, cb=cb)
-        return response
+        return self.api.do_set_player_title(player=player, msg=msg, cb=cb)
 
     def do_set_player_subtitle(self, player, msg, cb=None):
-        response = self.api.do_set_player_subtitle(player=player, msg=msg, cb=cb)
-        return response
+        return self.api.do_set_player_subtitle(player=player, msg=msg, cb=cb)
 
     def do_set_player_actionbar(self, player, msg, cb=None):
-        response = self.api.do_set_player_actionbar(player=player, msg=msg, cb=cb)
-        return response
+        return self.api.do_set_player_actionbar(player=player, msg=msg, cb=cb)
 
     def do_get_player_pos(self, player, limit, cb=None):
-        response = self.api.do_get_player_pos(player=player, limit=limit, cb=cb)
-        return response
+        return self.api.do_get_player_pos(player=player, limit=limit, cb=cb)
 
     def do_set_player_data(self, player, entry, data, cb=None):
-        response = self.api.do_set_player_data(player=player, entry=entry, data=data, cb=cb)
-        return response
+        return self.api.do_set_player_data(player=player, entry=entry, data=data, cb=cb)
 
     def do_get_player_data(self, player, entry, cb=None):
-        response = self.api.do_get_player_data(player=player, entry=entry, cb=cb)
-        return response
+        return self.api.do_get_player_data(player=player, entry=entry, cb=cb)
 
     def do_get_item_mapping(self, cb=None):
-        response = self.api.do_get_item_mapping(cb=cb)
-        return response
+        return self.api.do_get_item_mapping(cb=cb)
 
     def do_get_block_mapping(self, cb=None):
-        response = self.api.do_get_block_mapping(cb=cb)
-        return response
+        return self.api.do_get_block_mapping(cb=cb)
 
     def do_get_scoreboard(self, cb=None):
-        response = self.api.do_get_scoreboard(cb=cb)
-        return response
+        return self.api.do_get_scoreboard(cb=cb)
 
     def do_send_fb_cmd(self, cmd, cb=None):
-        response = self.api.do_send_fb_cmd(cmd=cmd, cb=cb)
-        return response
+        return self.api.do_send_fb_cmd(cmd=cmd, cb=cb)
 
     def do_send_qq_msg(self, msg, cb=None):
-        response = self.api.do_send_qq_msg(msg=msg, cb=cb)
-        return response
+        return self.api.do_send_qq_msg(msg=msg, cb=cb)
 
     def listen_omega_menu(self, triggers=[], argument_hint="", usage="", on_menu_invoked=None, cb=None):
-        response = self.api.listen_omega_menu(triggers=triggers, argument_hint=argument_hint, usage=usage, on_menu_invoked=on_menu_invoked, cb=cb)
-        return response
+        return self.api.listen_omega_menu(triggers=triggers, argument_hint=argument_hint, usage=usage, on_menu_invoked=on_menu_invoked, cb=cb)
 
     def listen_mc_packet(self, pkt_type, on_new_packet_cb, cb=None):
-        response = self.api.listen_mc_packet(pkt_type=pkt_type, cb=cb, on_new_packet_cb=on_new_packet_cb)
-        return response
+        return self.api.listen_mc_packet(pkt_type=pkt_type, cb=cb, on_new_packet_cb=on_new_packet_cb)
 
     def listen_any_mc_packet(self, on_new_packet_cb, cb=None):
-        response = self.api.listen_any_mc_packet(cb=cb, on_new_packet_cb=on_new_packet_cb)
-        return response
+        return self.api.listen_any_mc_packet(cb=cb, on_new_packet_cb=on_new_packet_cb)
 
     def listen_player_login(self, on_player_login_cb, cb=None):
-        response = self.api.listen_player_login(cb=cb, on_player_login_cb=on_player_login_cb)
-        return response
+        return self.api.listen_player_login(cb=cb, on_player_login_cb=on_player_login_cb)
 
     def listen_player_logout(self, on_player_logout_cb, cb=None):
-        response = self.api.listen_player_logout(cb=cb, on_player_logout_cb=on_player_logout_cb)
-        return response
+        return self.api.listen_player_logout(cb=cb, on_player_logout_cb=on_player_logout_cb)
 
     def listen_block_update(self, on_block_update, cb=None):
-        response = self.api.listen_block_update(cb=cb, on_block_update=on_block_update)
-        return response
+        return self.api.listen_block_update(cb=cb, on_block_update=on_block_update)
 
     # 写入数据到JSON文件
     def write_json_file(self, filename, dict):
@@ -205,16 +177,14 @@ class api(object):
     def get_player_permission(self, name):
         # 获取uqholder
         uqholder = self.do_get_uqholder()
+        # 权限列表
+        OPPermissionLevelList = ["访客", "成员", "操作员"]
         # 解析
         for data in uqholder.PlayersByEntityID.values():
             if data.Username == name:
-                if data.OPPermissionLevel == 0:
-                    return '访客'
-                elif data.OPPermissionLevel == 1:
-                    return '成员'
-                elif data.OPPermissionLevel == 2:
-                    return '操作员'
-                else:
+                try:
+                    return OPPermissionLevelList[data.OPPermissionLevel]
+                except Exception:
                     return f'unknow<{data.OPPermissionLevel}>'
         return None
 
@@ -222,14 +192,14 @@ class api(object):
     def get_player_platform(self, name):
         # 获取uqholder
         uqholder = self.do_get_uqholder()
+        # 平台ID列表 - From PhoenixBuilder:minecraft/protocol/os.go
+        platformIDList = ["Android", "iOS", "OSX", "FireOS", "GearVR", "Hololens", "Win10", "Win32", "Dedicated", "TVOS", "Orbis", "NX", "XBOX", "WP"]
         # 解析
         for data in uqholder.PlayersByEntityID.values():
             if data.Username == name:
-                if data.BuildPlatform == 1:
-                    return 'Android'
-                elif data.BuildPlatform == 2:
-                    return 'iOS'
-                else:
+                try:
+                    return platformIDList[data.BuildPlatform - 1]
+                except Exception:
                     return f'unknow<{data.BuildPlatform}>'
         return None
 
@@ -291,4 +261,4 @@ class api(object):
     # 向所有玩家发送一条消息
     def send_all_player_msg(self, msg):
         self.execute_after(func=lambda:self.do_send_wo_cmd(f"tellraw @a {{\"rawtext\":[{{\"text\":\"{msg}\"}}]}}"), delay_time=0.1)
-        return
+        return True
