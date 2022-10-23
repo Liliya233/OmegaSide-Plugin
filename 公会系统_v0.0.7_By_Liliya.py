@@ -8,7 +8,9 @@ from API_By_Liliya import api
 
 # 变量类
 class param:
+    dataFileName = '公会系统_By_Liliya'
     guildDict = {}
+    powerNameList = ["§7普通会员§r", "§3高级会员§r", "§a公会管理§r", "§6公会会长§r"]
 
 # 玩家实体类
 class player:
@@ -29,22 +31,22 @@ class player:
             playerObj = player()
             playerObj.__dict__ = guildObj.members[UUID]
             return playerObj
-        return False
+        return None
 
     # 通过UUID查询玩家公会权限
     def getPowerByUUID(UUID):
         playerObj = player.getByUUID(UUID)
         if playerObj:
             return player.getByUUID(UUID).power
-        return False
+        return None
 
     # 根据贡献值进行玩家排序
-    def sort(members):
+    def getSortedDict(members):
         return dict(sorted(members.items(), key=lambda x: x[1]['contribute'], reverse=True))
 
 # 公会实体类
 class guild:
-    def __init__(self, name='', level=1, contribute=0, president='', isClosed=False, pos={'d':0, 'x':0, 'y':0, 'z':0}, members={}):
+    def __init__(self, name='', level=1, contribute=0, president='', isClosed=False, pos={'d':0, 'x':0, 'y':0, 'z':0}, members={}, applicants={}):
         # 昵称
         self.name = name
         # 等级
@@ -59,12 +61,13 @@ class guild:
         self.pos = pos
         # 会员列表
         self.members = members
+        # 申请列表
+        self.applicants = applicants
 
     # 新增一个公会
     def add(guild):
         if guild.name not in param.guildDict:
             param.guildDict.update({guild.name: guild.__dict__})
-            tool.writeToFile(param.guildDict)
             return True
         return False
 
@@ -72,7 +75,6 @@ class guild:
     def update(guild):
         if guild.name in param.guildDict:
             param.guildDict.update({guild.name: guild.__dict__})
-            tool.writeToFile(param.guildDict)
             return True
         return False
 
@@ -80,7 +82,6 @@ class guild:
     def delete(guildName):
         if guildName in param.guildDict:
             param.guildDict.pop(guildName)
-            tool.writeToFile(param.guildDict)
             return True
         return False
 
@@ -90,14 +91,14 @@ class guild:
             guildObj = guild()
             guildObj.__dict__ = param.guildDict[guildName]
             return guildObj
-        return False
+        return None
 
     # 通过玩家UUID获取其归属的公会对象
-    def getByUUID(playerUUID):
+    def getByUUID(UUID):
         for gkey in param.guildDict.keys():
-            if playerUUID in param.guildDict[gkey]['members'].keys():
-                    return guild.getByName(gkey)
-        return False
+            if UUID in param.guildDict[gkey]['members'].keys():
+                return guild.getByName(gkey)
+        return None
 
     # 通过坐标信息获取公会对象
     def getByPos(pos):
@@ -110,22 +111,14 @@ class guild:
             # 判断
             if pos['d'] == gdata['pos']['d'] and (gdata['pos']['x']-dx)<=pos['x']<=(gdata['pos']['x']+dx) and (gdata['pos']['z']-dx)<=pos['z']<=(gdata['pos']['z']+dx):
                 return guild.getByName(gkey)
-        return False
+        return None
     
-    # 获取指定公会的玩家列表，type: 0=全部玩家 1=正式会员 2=未审核会员
-    def getMembers(guildName, type):
-        result=[]
-        if type==0:
-            for data in param.guildDict[guildName]['members'].values():
+    # 根据权限列表获取指定公会的玩家列表
+    def getMembersByPower(guildObj, powerList):
+        result = []
+        for data in guildObj.members.values():
+            if data['power'] in powerList:
                 result.append(data)
-        elif type==1:
-            for data in param.guildDict[guildName]['members'].values():
-                if data['power'] > 0:
-                    result.append(data)
-        elif type==2:
-            for data in param.guildDict[guildName]['members'].values():
-                if data['power'] == 0:
-                    result.append(data)
         return result
 
     # 获取最近的公会边界
@@ -152,13 +145,6 @@ class guild:
         # 返回
         return pos
 
-    # 获取玩家所属公会的等级
-    def getLevelByUUID(UUID):
-        guildObj = guild.getByUUID(UUID)
-        if guildObj:
-            return guildObj['level']
-        return False
-
     # 通过坐标信息查询附件是否存在其他公会
     def hasGuildNearby(pos):
         for gdata in param.guildDict.values():
@@ -168,42 +154,54 @@ class guild:
         return False
 
     # 根据等级与贡献值进行公会排序
-    def sort():
+    def getSortedDict():
         return dict(sorted(param.guildDict.items(), key=lambda x: (x[1]['level'], x[1]['contribute']), reverse=True))
 
-# 工具类
-class tool:
-    # 路径
-    path = './data/公会系统_By_Liliya.json'
- 
-    # 输出数据到JSON文件
-    def writeToFile(dict):
-        with open(tool.path, 'w', encoding='utf-8') as file:
-            json.dump(dict, file, indent=4, ensure_ascii=False)
+    # 获取申请列表
+    def getApplicants(guildObj):
+        result=[]
+        for data in guildObj.applicants.values():
+            result.append(data)
+        return result
 
-    # 从JSON文件读取数据
-    def readFromFile():
-        try:
-            with open(tool.path, 'r', encoding='utf-8') as file:
-                return json.load(file)
-        except Exception:
-            return {}
+    # 查询玩家申请的公会
+    def getApplying(UUID):
+        for value in param.guildDict.values():
+            for key in value["applicants"].keys():
+                if key == UUID:
+                    guildObj = guild()
+                    guildObj.__dict__ = value
+                    return guildObj
+        return None
 
 # 公会插件
 class guildPlugin(object):
     def __init__(self, name:str="公会系统") -> None:
         self.name=name
 
+    # 这三个函数需要调用api，包装一下放在这里吧
+    def add_guild_and_save(self, guildObj):
+        guild.add(guildObj)
+        self.api.write_json_file(param.dataFileName, param.guildDict)
+
+    def update_guild_and_save(self, guildObj):
+        guild.update(guildObj)
+        self.api.write_json_file(param.dataFileName, param.guildDict)
+
+    def delete_guild_and_save(self, guildName):
+        guild.delete(guildName)
+        self.api.write_json_file(param.dataFileName, param.guildDict)
+
     # 菜单项-返回公会
     def menu_back(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
-        # 是否拥有公会
-        if player.getPowerByUUID(UUID) in [False, 0]:
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
-            return
         # 获取公会
         guildObj = guild.getByUUID(UUID)
+        # 是否拥有公会
+        if not guildObj:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
+            return
         # 发送传送指令
         self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\"] {guildObj.pos['x']} {guildObj.pos['y']} {guildObj.pos['z']}")
         self.api.do_send_player_msg(playerName, f"§e[公会系统] §b欢迎回到公会 - §e{guildObj.name}")
@@ -222,33 +220,32 @@ class guildPlugin(object):
         if count < 1:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入大于0的数字哦！")
             return
+        # 获取公会
+        guildObj = guild.getByUUID(UUID)
         # 是否拥有公会
-        if player.getPowerByUUID(UUID) in [False, 0]:
+        if not guildObj:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
             return
         # 判断是否扣费成功
-        if not self.api.add_player_score(playerName, 'money', -count):
+        if not self.api.remove_player_score(playerName, 'money', count):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c贡献失败！请确保你有足够的余额哦！")
             return
-        # 获取公会
-        guildObj = guild.getByUUID(UUID)
         # 增加贡献
         guildObj.contribute += count
         guildObj.members[UUID]['contribute'] += count
         # 存储写入
-        guild.update(guildObj)
+        self.update_guild_and_save(guildObj)
         self.api.do_send_player_msg(playerName, "§e[公会系统] §a感谢你为公会作出的贡献~")
 
     # 菜单项-公会信息
     def menu_info(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
+        guildObj = guild.getByUUID(UUID)
         # 是否拥有公会
-        if player.getPowerByUUID(UUID) in [False, 0]:
+        if not guildObj:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
             return
-        # 获取公会
-        guildObj = guild.getByUUID(UUID)
         # 打印信息
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b公会信息")
         self.api.do_send_player_msg(playerName, f"§g公会名称 §b- §a{guildObj.name}")
@@ -259,17 +256,9 @@ class guildPlugin(object):
         self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
         rank=0
-        for data in player.sort(guildObj.members).values():
-            if data['power'] > 0:
-                rank+=1
-                if data['power'] == 1:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §7普通会员 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 2:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §d高级会员 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 3:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §a公会管理 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 4:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §6公会会长 §b- §9贡献*{data['contribute']}")
+        for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
+            rank+=1
+            self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
 
     # 菜单项-公会列表与功能
@@ -279,12 +268,10 @@ class guildPlugin(object):
         # 打印头部
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b公会信息")
         # 打印列表
-        rank=0
         guildNameList=[]
-        for data in guild.sort().values():
-            rank+=1
-            self.api.do_send_player_msg(playerName, f"§l§6{rank} §r§b公会名：§e{data['name']} §b- 等级：§a{data['level']}级 §b- 当前贡献：§9{data['contribute']} §b- 会长：§6{data['members'][data['president']]['name']}")
+        for data in guild.getSortedDict().values():
             guildNameList.append(data['name'])
+            self.api.do_send_player_msg(playerName, f"§l§6{len(guildNameList)} §r§b公会名：§e{data['name']} §b- 等级：§a{data['level']}级 §b- 当前贡献：§9{data['contribute']} §b- 会长：§6{data['members'][data['president']]['name']}")
         # 打印尾部
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §d请根据下方提示进行输入")
         # 获取玩家选择
@@ -312,19 +299,18 @@ class guildPlugin(object):
         # 功能项
         if select_2 in ['1', 'apply']:
             # 查询玩家是否有公会
-            power = player.getPowerByUUID(UUID)
-            if power > 0:
+            if guild.getByUUID(UUID):
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c你已经加入一个公会啦！")
                 return
             # 若处于申请状态，则撤销
-            if power is not False and power == 0:
-                guildObj = guild.getByUUID(UUID)
-                guildObj.members.pop(UUID)
-                guild.update(guildObj)
+            guildObj_1 = guild.getApplying(UUID)
+            if guildObj_1:
+                guildObj_1.applicants.pop(UUID)
+                self.update_guild_and_save(guildObj_1)
             # 将玩家存入选中公会
-            guildObj = guild.getByName(guildNameList[select_1-1])
-            guildObj.members.update({UUID: player(UUID=UUID, name=playerName).__dict__})
-            guild.update(guildObj)
+            guildObj_2 = guild.getByName(guildNameList[select_1-1])
+            guildObj_2.applicants.update({UUID: player(UUID=UUID, name=playerName).__dict__})
+            self.update_guild_and_save(guildObj_2)
             # 提示
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a申请成功！请等待公会管理员进行审核！")
         elif select_2 in ['2', 'query']:
@@ -343,17 +329,9 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
             rank=0
-            for data in player.sort(guildObj.members).values():
-                if data['power'] > 0:
-                    rank+=1
-                    if data['power'] == 1:
-                        self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §7普通会员 §b- §9贡献*{data['contribute']}")
-                    elif data['power'] == 2:
-                        self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §d高级会员 §b- §9贡献*{data['contribute']}")
-                    elif data['power'] == 3:
-                        self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §a公会管理 §b- §9贡献*{data['contribute']}")
-                    elif data['power'] == 4:
-                        self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §6公会会长 §b- §9贡献*{data['contribute']}")
+            for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
+                rank+=1
+                self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
         elif select_2 in ['3', 'teleport']:
             if self.api.get_player_permission(playerName) != "操作员":
@@ -370,7 +348,7 @@ class guildPlugin(object):
                 return
             # 移除公会
             if self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b若要移除公会，请输入§e确认§b继续进行该操作(§d确认后不可撤销§b)：").input[0] == '确认':
-                guild.delete(guildNameList[select_1-1])
+                self.delete_guild_and_save(guildNameList[select_1-1])
                 self.api.do_send_player_msg(playerName, f"§e[公会系统] §a已成功移除：§e{guildNameList[select_1-1]}")
             else:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c确认失败！本次操作已中断！")
@@ -388,7 +366,7 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c这个名字已经被使用啦！")
             return
         # 判断是否已加入公会
-        if guild.getByUUID(UUID) and player.getPowerByUUID(UUID) > 0:
+        if guild.getByUUID(UUID):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c你当前已经加入一个公会了，不能进行创建哦！")
             return
         # 判断是否符合选择器
@@ -400,7 +378,7 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！附近存在其他公会！")
             return
         # 判断是否扣费成功
-        if not self.api.add_player_score(playerName, 'money', -500000):
+        if not self.api.remove_player_score(playerName, 'money', 500000):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你有足够的余额哦！")
             return
         # 新建玩家对象
@@ -409,9 +387,9 @@ class guildPlugin(object):
         membersDict = {}
         membersDict.update({playerObj.UUID: playerObj.__dict__})
         # 新建公会对象
-        guildObj = guild(name=guildName, pos=self.api.get_player_pos(UUID), members=membersDict, president=UUID)
+        guildObj = guild(name=guildName, pos=self.api.get_player_pos(playerName), members=membersDict, president=UUID)
         # 存储写入
-        guild.add(guildObj)
+        self.add_guild_and_save(guildObj)
         # 提示
         self.api.do_send_player_msg(playerName, "§e[公会系统] §a创建成功！快邀请其他小伙伴加入公会吧！")
         # 更新分数
@@ -422,28 +400,29 @@ class guildPlugin(object):
         # 获取玩家信息
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
+        # 获取公会对象
         guildObj = guild.getByUUID(UUID)
         # 判断是否拥有公会
-        if guildObj:
-            # 同步计分板
-            self.api.set_player_score(playerName, "guildLevel", guildObj.level)
-            if guildObj.level >= 2:
-                self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] +gmall-exec")
-                self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] 1")
-                self.api.execute_after(func=lambda:self.api.do_send_player_msg(playerName, '§e[公会系统] §b请输入§e[物品序号] [购买数量]§b来进行批量购买吧~'), delay_time=1)
-                return
-        self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，只有2级或以上公会的会员才能使用哦！")
+        if not guildObj or player.getPowerByUUID(UUID) < 2:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，只有2级或以上公会的会员才能使用哦！")
+            return
+        # 同步计分板
+        self.api.set_player_score(playerName, "guildLevel", guildObj.level)
+        if guildObj.level >= 2:
+            self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] +gmall-exec")
+            self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] 1")
+            self.api.execute_after(func=lambda:self.api.do_send_player_msg(playerName, '§e[公会系统] §b请输入§e[物品序号] [购买数量]§b来进行批量购买吧~'), delay_time=1)
 
     # 菜单项-退出公会
     def menu_leave(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
+        # 获取公会对象
+        guildObj = guild.getByUUID(UUID)
         # 是否拥有公会
-        if player.getPowerByUUID(UUID) in [False, 0]:
+        if not guildObj:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
             return
-        # 获取公会
-        guildObj = guild.getByUUID(UUID)
         # 是否会长
         if UUID == guildObj.president:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c会长不能退出公会哦！")
@@ -452,7 +431,7 @@ class guildPlugin(object):
             # 删除会员
             guildObj.members.pop(UUID)
             # 存储写入
-            guild.update(guildObj)
+            self.update_guild_and_save(guildObj)
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a你已成功退出当前公会！")
             # 更新分数
             self.api.set_player_score(playerName, "guildLevel", 0)
@@ -463,24 +442,24 @@ class guildPlugin(object):
     def menu_upgrade(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
-        # 权限验证
-        if player.getPowerByUUID(UUID) in [False, 0, 1]:
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§d高级会员§c或以上")
-            return
         # 获取公会对象
         guildObj = guild.getByUUID(UUID)
+        # 权限验证
+        if not guildObj or player.getPowerByUUID(UUID) < 2:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§3高级会员§c或以上")
+            return
         # 等级上限
         if not guildObj.level < 4:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a公会已达到最高等级，无需继续升级啦！")
             return
         # 尝试扣除贡献
-        if not guildObj.contribute >= 500000:
+        if guildObj.contribute < 500000:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c升级失败，公会贡献不足！")
             return
         guildObj.contribute -= 500000
         guildObj.level+=1
         # 存储写入
-        guild.update(guildObj)
+        self.update_guild_and_save(guildObj)
         self.api.do_send_player_msg(playerName, f"§e[公会系统] §a升级成功！当前公会等级为：§e{guildObj.level}级")
         # 更新分数
         for data in guildObj.members.values():
@@ -490,60 +469,48 @@ class guildPlugin(object):
     def menu_close(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
-        # 权限验证
-        if player.getPowerByUUID(UUID) in [False, 0, 1, 2]:
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
-            return
         # 获取公会对象
         guildObj = guild.getByUUID(UUID)
+        # 权限验证
+        if not guildObj or player.getPowerByUUID(UUID) < 3:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
+            return
         # 状态更新
-        if guildObj.isClosed:
-            guildObj.isClosed = False
-        else:
-            guildObj.isClosed = True
+        guildObj.isClosed = False if guildObj.isClosed else True
         # 存储写入
-        guild.update(guildObj)
+        self.update_guild_and_save(guildObj)
         self.api.do_send_player_msg(playerName, f"§e[公会系统] §a更改成功！当前公会禁入设置为：§e{'§c启用' if guildObj.isClosed else '§a禁用'}")
 
     # 管理菜单项-人员管理
     def menu_manger(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
+        # 获取公会对象
+        guildObj = guild.getByUUID(UUID)
         # 权限验证
-        if player.getPowerByUUID(UUID) in [False, 0, 1]:
+        if not guildObj or player.getPowerByUUID(UUID) < 3:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
             return
-        guildObj = guild.getByUUID(UUID)
         # 列出会员
         self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §b会员管理")
-        rank=0
         playerUUIDList=[]
-        for data in player.sort(guildObj.members).values():
-            if data['power'] > 0:
-                rank+=1
-                if data['power'] == 1:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §7普通会员 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 2:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §d高级会员 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 3:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §a公会管理 §b- §9贡献*{data['contribute']}")
-                elif data['power'] == 4:
-                    self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §6公会会长 §b- §9贡献*{data['contribute']}")
-                playerUUIDList.append(data['UUID'])
+        for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
+            playerUUIDList.append(data['UUID'])
+            self.api.do_send_player_msg(playerName, f"§l§6{len(playerUUIDList)}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
         self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §d请根据下方提示进行输入")
         # 获取玩家选择
         try:
-            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0])
+            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0]) - 1
         except Exception:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
             return
         # 判断是否越界
-        if not 0 < select_1 <= len(playerUUIDList):
+        if not 0 <= select_1 < len(playerUUIDList):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
             return
         # 打印头部
         self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §b会员管理")
-        self.api.do_send_player_msg(playerName, f"§7当前已选中会员：§e{player.getByUUID(playerUUIDList[select_1-1]).name}")
+        self.api.do_send_player_msg(playerName, f"§7当前已选中会员：§e{player.getByUUID(playerUUIDList[select_1]).name}")
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §eremove §r§e[§a公会管理§e+]§b将该名会员移出公会")
         self.api.do_send_player_msg(playerName, "§l§62 §esetpower §r§e[§6公会会长§e]§b设置该名会员的权限")
@@ -554,44 +521,44 @@ class guildPlugin(object):
         # 功能项
         if select_2 in ['1', 'remove']:
             # 权限验证
-            if player.getPowerByUUID(UUID) in [False, 0, 1, 2]:
+            if player.getPowerByUUID(UUID) < 3:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
                 return
             # 权限对比
-            if player.getPowerByUUID(UUID) == 3 and player.getPowerByUUID(playerUUIDList[select_1-1]) > 2:
-                self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法移除，当前权限等级仅允许移除§7普通会员§c与§d高级会员")
+            elif player.getPowerByUUID(UUID) == 3 and player.getPowerByUUID(playerUUIDList[select_1]) > 2:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法移除，当前权限等级仅允许移除§7普通会员§c与§3高级会员")
                 return
-            if player.getPowerByUUID(UUID) == 4 and player.getPowerByUUID(playerUUIDList[select_1-1]) > 3:
-                self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法移除，当前权限等级仅允许移除§7普通会员§c、§d高级会员§c与§a公会管理")
+            elif player.getPowerByUUID(playerUUIDList[select_1]) == 4:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法移除，当前权限等级仅允许移除§7普通会员§c、§3高级会员§c与§a公会管理")
                 return
             # 更新分数
-            self.api.set_player_score(player.getByUUID(playerUUIDList[select_1-1]).name, "guildLevel", 0)
+            self.api.set_player_score(player.getByUUID(playerUUIDList[select_1]).name, "guildLevel", 0)
             # 移除会员
-            guildObj.members.pop(playerUUIDList[select_1-1])
+            guildObj.members.pop(playerUUIDList[select_1])
             # 存储写入
-            guild.update(guildObj)
+            self.update_guild_and_save(guildObj)
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a已成功将该会员移出公会！")
         elif select_2 in ['2', 'setpower']:
             # 权限验证
-            if player.getPowerByUUID(UUID) in [False, 0, 1, 2, 3]:
+            if player.getPowerByUUID(UUID) < 4:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§6公会会长")
                 return
             # 权限对比
-            if player.getPowerByUUID(playerUUIDList[select_1-1]) > 3:
+            if player.getPowerByUUID(playerUUIDList[select_1]) == 4:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c会长权限不允许更改哦！")
                 return
             # 打印头部
             self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §b会员管理")
-            self.api.do_send_player_msg(playerName, f"§7当前已选中会员：§e{player.getByUUID(playerUUIDList[select_1-1]).name}")
+            self.api.do_send_player_msg(playerName, f"§7当前已选中会员：§e{player.getByUUID(playerUUIDList[select_1]).name}")
             # 打印选项列表
             self.api.do_send_player_msg(playerName, "§l§61 §eordinary §r§b将该名会员的权限设置为§7普通会员")
-            self.api.do_send_player_msg(playerName, "§l§62 §esenior §r§b将该名会员的权限设置为§d高级会员")
+            self.api.do_send_player_msg(playerName, "§l§62 §esenior §r§b将该名会员的权限设置为§3高级会员")
             self.api.do_send_player_msg(playerName, "§l§63 §emanagement §r§b将该名会员的权限设置为§a公会管理")
             # 打印尾部
             self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §d请根据下方提示进行输入")
             # 获取玩家选择
             select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入要设置的权限：").input[0]
-            pl = player.getByUUID(playerUUIDList[select_1-1])
+            pl = player.getByUUID(playerUUIDList[select_1])
             if select_3 in ['1', 'ordinary']:
                 pl.power = 1
             elif select_3 in ['2', 'senior']:
@@ -603,7 +570,7 @@ class guildPlugin(object):
                 return
             guildObj.members.update({pl.UUID: pl.__dict__})
             # 存储写入
-            guild.update(guildObj)
+            self.update_guild_and_save(guildObj)
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a已成功更改该名会员的权限！")
         else:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
@@ -612,34 +579,34 @@ class guildPlugin(object):
     def menu_verify(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
+        # 获取公会对象
+        guildObj = guild.getByUUID(UUID)
         # 权限验证
-        if player.getPowerByUUID(UUID) in [False, 0, 1]:
+        if not guildObj or player.getPowerByUUID(UUID) < 3:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
             return
-        guildObj = guild.getByUUID(UUID)
         # 列出待审核会员
         self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §b会员审批")
-        rank=0
-        playerUUIDList=[]
-        for data in player.sort(guildObj.members).values():
-            if data['power'] == 0:
-                rank+=1
-                self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- §c等待审批")
-                playerUUIDList.append(data['UUID'])
+        playerList=[]
+        for data in guild.getApplicants(guildObj):
+            playerList.append(data)
+            self.api.do_send_player_msg(playerName, f"§l§6{len(playerList)}.§r§e{data['name']} §b- §c等待审批")
         self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §d请根据下方提示进行输入")
         # 获取玩家选择
         try:
-            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0])
+            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0]) - 1
         except Exception:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
             return
         # 判断是否越界
-        if not 0 < select_1 <= len(playerUUIDList):
+        if not 0 <= select_1 < len(playerList):
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
             return
+        # 选中的玩家
+        selected_pl = playerList[select_1]
         # 打印头部
         self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §b会员审批")
-        self.api.do_send_player_msg(playerName, f"§7当前已选中玩家：§e{player.getByUUID(playerUUIDList[select_1-1]).name}")
+        self.api.do_send_player_msg(playerName, f"§7当前已选中玩家：§e{selected_pl['name']}")
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §eallow §r§b同意该入会申请")
         self.api.do_send_player_msg(playerName, "§l§62 §edeny §r§b拒绝该入会申请")
@@ -648,39 +615,39 @@ class guildPlugin(object):
         # 获取玩家选择
         select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
         # 功能项
-        pl = player.getByUUID(playerUUIDList[select_1-1])
         if select_2 in ['1', 'allow']:
-            pl.power = 1
-            guildObj.members.update({pl.UUID: pl.__dict__})
+            selected_pl['power'] = 1
+            guildObj.members.update({selected_pl['UUID']: selected_pl})
+            guildObj.applicants.pop(selected_pl['UUID'])
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a你同意了该入会申请！")
             # 更新分数
-            self.api.set_player_score(player.getByUUID(playerUUIDList[select_1-1]).name, "guildLevel", guildObj.level)
+            self.api.set_player_score(selected_pl['name'], "guildLevel", guildObj.level)
         elif select_2 in ['2', 'deny']:
-            guildObj.members.pop(pl.UUID)
+            guildObj.applicants.pop(selected_pl['UUID'])
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a你拒绝了该入会申请！")
         else:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
             return
         # 存储写入
-        guild.update(guildObj)
+        self.update_guild_and_save(guildObj)
 
     # 管理菜单项-公会解散
     def menu_dissolution(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
-        # 权限验证
-        if player.getPowerByUUID(UUID) in [False, 0, 1, 2, 3]:
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§6公会会长")
-            return
         # 获取公会对象
         guildObj = guild.getByUUID(UUID)
+        # 权限验证
+        if not guildObj or player.getPowerByUUID(UUID) < 4:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§6公会会长")
+            return
         # 再次确认
         if self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b若要解散公会，请输入§e立即解散§b继续进行该操作(§d确认后不可撤销§b)：").input[0] == '立即解散':
             # 更新分数
             for data in guildObj.members.values():
                 self.api.set_player_score(player.getByUUID(data['name']), "guildLevel", 0)
             # 解散公会
-            guild.delete(guildObj.name)
+            self.delete_guild_and_save(guildObj.name)
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a你已成功解散当前公会！")
         else:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c确认失败！本次操作已中断！")
@@ -698,11 +665,7 @@ class guildPlugin(object):
                     # 解析
                     playerUUID = data['uniqueId']
                     playerName = self.api.get_player_name(playerUUID)
-                    playerPos = {}
-                    playerPos.update({"d": data['dimension']})
-                    playerPos.update({"x": int(data['position']['x'])})
-                    playerPos.update({"y": int(data['position']['y'])})
-                    playerPos.update({"z": int(data['position']['z'])})
+                    playerPos = self.api.get_player_pos(playerName)
                     # 尝试获取公会
                     guildObj_1 = guild.getByPos(playerPos)
                     guildObj_2 = guild.getByUUID(playerUUID)
@@ -711,18 +674,19 @@ class guildPlugin(object):
                         # 通用
                         self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于公会区域 - §e{guildObj_1.name}")
                         self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\"] add 公会区域")
-                        # 不为自己公会
-                        if player.getPowerByUUID(playerUUID) in [False, 0] or guildObj_1.name != guildObj_2.name:
+                        # 是否为所属公会
+                        if guildObj_1 is guildObj_2:
+                            # 如果玩家改名，此时会被更新
+                            if guildObj_1.members[playerUUID]['name'] is not playerName:
+                                guildObj_1.members[playerUUID]['name'] = playerName
+                                self.update_guild_and_save(guildObj_1)
+                        else:
                             if guildObj_1.isClosed:
                                 board = guild.getBoard(guildObj_1, playerPos)
                                 self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\",m=!c] {board['x']} {board['y']} {board['z']}")
                                 self.api.do_send_wo_cmd(f"titleraw @a[name=\"{playerName}\",m=!c] actionbar {{\"rawtext\":[{{\"text\":\"§c当前公会不允许非公会成员进入\"}}]}}")
                             else:
                                 self.api.do_send_wo_cmd(f"gamemode a @a[name=\"{playerName}\",m=s]")
-                        else:
-                            if guildObj_1.members[playerUUID]['name'] != playerName:
-                                guildObj_1.members[playerUUID]['name'] = playerName
-                                guild.update(guildObj_1)
                     else:
                         self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}},tag=公会区域] actionbar §b已离开公会区域")
                         self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\",tag=公会区域] remove 公会区域")
@@ -733,7 +697,7 @@ class guildPlugin(object):
         # 获取API
         self.api=api(API)
         # 读取公会信息
-        param.guildDict = tool.readFromFile()
+        param.guildDict = self.api.read_json_file(param.dataFileName)
         # 注册菜单等功能
         self.api.listen_omega_menu(triggers=["gback"], argument_hint="", usage="返回公会中心", on_menu_invoked=self.menu_back)
         self.api.listen_omega_menu(triggers=["gcontribute"], argument_hint="", usage="消耗结晶碎片为公会增加贡献值", on_menu_invoked=self.menu_contribute)
@@ -742,7 +706,7 @@ class guildPlugin(object):
         self.api.listen_omega_menu(triggers=["gmall"], argument_hint="", usage="§e[2级公会+]§b咕咕商城(Guild Edtion)", on_menu_invoked=self.menu_mall)
         self.api.listen_omega_menu(triggers=["gcreate"], argument_hint="", usage="§9[费用:结晶碎片*50w]§b在当前位置创建一个公会", on_menu_invoked=self.menu_create)
         self.api.listen_omega_menu(triggers=["gleave"], argument_hint="", usage="§b退出当前公会", on_menu_invoked=self.menu_leave)
-        self.api.listen_omega_menu(triggers=["gupgrade"], argument_hint="", usage="§9[费用:公会贡献*50w]§e[§d高级会员§e+]§b升级公会，最高升级至4级", on_menu_invoked=self.menu_upgrade)
+        self.api.listen_omega_menu(triggers=["gupgrade"], argument_hint="", usage="§9[费用:公会贡献*50w]§e[§3高级会员§e+]§b升级公会，最高升级至4级", on_menu_invoked=self.menu_upgrade)
         self.api.listen_omega_menu(triggers=["gclose"], argument_hint="", usage="§e[§a公会管理§e+]§b设置公会禁入，开启后非公会会员无法进入公会区域", on_menu_invoked=self.menu_close)
         self.api.listen_omega_menu(triggers=["gmanage"], argument_hint="", usage="§e[§a公会管理§e+]§b人事管理，包含踢出会员和设置会员权限", on_menu_invoked=self.menu_manger)
         self.api.listen_omega_menu(triggers=["gverify"], argument_hint="", usage="§e[§a公会管理§e+]§b查看并审批入会申请", on_menu_invoked=self.menu_verify)

@@ -258,6 +258,14 @@ class api(object):
             return True
         return False
 
+    # 扣除玩家分数 - 扣除后小于0则失败
+    def remove_player_score(self, name, scoreboard, score):
+        response = self.do_send_ws_cmd(f"scoreboard players remove @a[name=\"{name}\",scores={{{scoreboard}={score}..}}] {scoreboard} {score}")
+        # 解析
+        if response.result.OutputMessages[0].Success:
+            return True
+        return False
+
     # 向所有玩家发送一条消息
     def send_all_player_msg(self, msg):
         self.execute_after(func=lambda:self.do_send_wo_cmd(f"tellraw @a {{\"rawtext\":[{{\"text\":\"{msg}\"}}]}}"), delay_time=0.1)
