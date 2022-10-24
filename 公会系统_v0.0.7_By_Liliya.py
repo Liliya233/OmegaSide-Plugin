@@ -1,6 +1,5 @@
 # 插件: 开
 import json
-import time
 from omega_side.python3_omega_sync import API
 from omega_side.python3_omega_sync import frame as omega
 from omega_side.python3_omega_sync.protocol import *
@@ -44,9 +43,57 @@ class player:
     def getSortedDict(members):
         return dict(sorted(members.items(), key=lambda x: x[1]['contribute'], reverse=True))
 
+# 营地实体类
+class camp:
+    def __init__(self, name='', guildName='', pos={'d':0, 'x':0, 'y':0, 'z':0}):
+        # 昵称
+        self.name = name
+        # 所属公会昵称
+        self.guildName = guildName
+        # 中心坐标
+        self.pos = pos
+
+    # 通过营地昵称获取营地对象
+    def getByName(campName):
+        for gdata in param.guildDict.values():
+            for cdata in gdata['camps'].values():
+                if cdata['name'] == campName:
+                    campObj = camp()
+                    campObj.__dict__ = cdata
+                    return campObj
+        return None
+
+    # 通过坐标信息获取营地对象
+    def getByPos(pos):
+        for gdata in param.guildDict.values():
+            for cdata in gdata['camps'].values():
+                # 判断
+                if pos['d'] == cdata['pos']['d'] and (cdata['pos']['x']-200)<=pos['x']<=(cdata['pos']['x']+200) and (cdata['pos']['z']-200)<=pos['z']<=(cdata['pos']['z']+200):
+                    return camp.getByName(cdata['name'])
+        return None
+
+    # 获取最近的营地边界
+    def getBoard(campObj, pos):
+        # 计算玩家坐标与公会左下角坐标差绝对值
+        x = pos['x'] - campObj.pos['x'] + 202
+        z = pos['z'] - campObj.pos['z'] + 202
+        # 判断
+        if z<=404-x:
+            if z<=x:
+                pos['z'] = campObj.pos['z'] - 202
+            else:
+                pos['x'] = campObj.pos['x'] - 202
+        else:
+            if z<=x:
+                pos['x'] = campObj.pos['x'] + 202
+            else:
+                pos['z'] = campObj.pos['z'] + 202
+        # 返回
+        return pos
+
 # 公会实体类
 class guild:
-    def __init__(self, name='', level=1, contribute=0, president='', isClosed=False, pos={'d':0, 'x':0, 'y':0, 'z':0}, members={}, applicants={}):
+    def __init__(self, name='', level=1, contribute=0, president='', isClosed=False, isAccessed=True, pos={'d':0, 'x':0, 'y':0, 'z':0}, camps={}, members={}, vistors={}, applicants={}):
         # 昵称
         self.name = name
         # 等级
@@ -55,12 +102,18 @@ class guild:
         self.contribute = contribute
         # 是否禁入
         self.isClosed = isClosed
+        # 是否允许访客
+        self.isAccessed = isAccessed
         # 会长UUID
         self.president = president
         # 中心坐标
         self.pos = pos
+        # 营地列表
+        self.camps = camps
         # 会员列表
         self.members = members
+        # 访客列表
+        self.vistors = vistors
         # 申请列表
         self.applicants = applicants
 
@@ -112,7 +165,7 @@ class guild:
             if pos['d'] == gdata['pos']['d'] and (gdata['pos']['x']-dx)<=pos['x']<=(gdata['pos']['x']+dx) and (gdata['pos']['z']-dx)<=pos['z']<=(gdata['pos']['z']+dx):
                 return guild.getByName(gkey)
         return None
-    
+
     # 根据权限列表获取指定公会的玩家列表
     def getMembersByPower(guildObj, powerList):
         result = []
@@ -122,35 +175,39 @@ class guild:
         return result
 
     # 获取最近的公会边界
-    def getBoard(guild, pos):
+    def getBoard(guildObj, pos):
         # 根据公会等级设定范围
-        if guild.level == 4: dx = 402
-        elif guild.level == 3: dx = 302
-        elif guild.level == 2: dx = 202
+        if guildObj.level == 4: dx = 402
+        elif guildObj.level == 3: dx = 302
+        elif guildObj.level == 2: dx = 202
         else: dx = 152
         # 计算玩家坐标与公会左下角坐标差绝对值
-        x = pos['x'] - guild.pos['x'] + dx
-        z = pos['z'] - guild.pos['z'] + dx
+        x = pos['x'] - guildObj.pos['x'] + dx
+        z = pos['z'] - guildObj.pos['z'] + dx
         # 判断
         if z<=2*dx-x:
             if z<=x:
-                pos['z'] = guild.pos['z'] - dx
+                pos['z'] = guildObj.pos['z'] - dx
             else:
-                pos['x'] = guild.pos['x'] - dx
+                pos['x'] = guildObj.pos['x'] - dx
         else:
             if z<=x:
-                pos['x'] = guild.pos['x'] + dx
+                pos['x'] = guildObj.pos['x'] + dx
             else:
-                pos['z'] = guild.pos['z'] + dx
+                pos['z'] = guildObj.pos['z'] + dx
         # 返回
         return pos
 
-    # 通过坐标信息查询附件是否存在其他公会
+    # 通过坐标信息查询附近是否存在其他公会或营地
     def hasGuildNearby(pos):
         for gdata in param.guildDict.values():
-            # 判断
+            # 公会主区域判断
             if pos['d'] == gdata['pos']['d'] and (gdata['pos']['x']-900)<=pos['x']<=(gdata['pos']['x']+900) and (gdata['pos']['z']-900)<=pos['z']<=(gdata['pos']['z']+900):
                 return True
+            # 公会营地判断
+            for cdata in gdata["camps"].values():
+                if pos['d'] == cdata['pos']['d'] and (cdata['pos']['x']-900)<=pos['x']<=(cdata['pos']['x']+900) and (cdata['pos']['z']-900)<=pos['z']<=(cdata['pos']['z']+900):
+                    return True
         return False
 
     # 根据等级与贡献值进行公会排序
@@ -254,11 +311,18 @@ class guildPlugin(object):
         self.api.do_send_player_msg(playerName, f"§g公会贡献 §b- §a{guildObj.contribute}")
         self.api.do_send_player_msg(playerName, f"§g公会坐标 §b- §a({guildObj.pos['x']}, {guildObj.pos['y']}, {guildObj.pos['z']})")
         self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
+        self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
+        campList=[]
+        for data in guildObj.camps.values():
+            campList.append(data)
+            self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
+        if len(campList) == 0:
+            self.api.do_send_player_msg(playerName, "§7暂未创建营地")
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
-        rank=0
+        guildList=[]
         for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
-            rank+=1
-            self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
+            guildList.append(data)
+            self.api.do_send_player_msg(playerName, f"§l§6{len(guildList)} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
 
     # 菜单项-公会列表与功能
@@ -327,11 +391,18 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, f"§g公会贡献 §b- §a{guildObj.contribute}")
             self.api.do_send_player_msg(playerName, f"§g公会坐标 §b- §a({guildObj.pos['x']}, {guildObj.pos['y']}, {guildObj.pos['z']})")
             self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
+            self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
+            campList=[]
+            for data in guildObj.camps.values():
+                campList.append(data)
+                self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
+            if len(campList) == 0:
+                self.api.do_send_player_msg(playerName, "§7暂未创建营地")
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
             rank=0
             for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
                 rank+=1
-                self.api.do_send_player_msg(playerName, f"§l§6{rank}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
+                self.api.do_send_player_msg(playerName, f"§l§6{rank} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
         elif select_2 in ['3', 'teleport']:
             if self.api.get_player_permission(playerName) != "操作员":
@@ -355,45 +426,114 @@ class guildPlugin(object):
         else:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
 
-    # 菜单项-创建公会
-    def menu_create(self, input:PlayerInput):
+    # 管理菜单项-公会营地
+    def menu_camp(self, input:PlayerInput):
         playerName = input.Name
         UUID = self.api.get_player_uuid(playerName)
-        # 要求玩家输入公会名
-        guildName = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请为公会起个名字吧！(§e不能输入空格哦§b)：").input[0]
-        # 判断是否重名
-        if guild.getByName(guildName):
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c这个名字已经被使用啦！")
-            return
-        # 判断是否已加入公会
-        if guild.getByUUID(UUID):
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c你当前已经加入一个公会了，不能进行创建哦！")
-            return
-        # 判断是否符合选择器
-        if self.api.do_send_ws_cmd(f"testfor @a[name=\"{playerName}\",m=!a,scores={{ID=1..,dim=1}},tag=!保护区域]").result.SuccessCount < 1:
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你当前位于主世界资源区哦！")
-            return
-        # 判断附件是否存在公会
-        if guild.hasGuildNearby(self.api.get_player_pos(playerName)):
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！附近存在其他公会！")
-            return
-        # 判断是否扣费成功
-        if not self.api.remove_player_score(playerName, 'money', 500000):
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你有足够的余额哦！")
-            return
-        # 新建玩家对象
-        playerObj = player(UUID=UUID, name=playerName, power=4)
-        # 新建会员字典
-        membersDict = {}
-        membersDict.update({playerObj.UUID: playerObj.__dict__})
-        # 新建公会对象
-        guildObj = guild(name=guildName, pos=self.api.get_player_pos(playerName), members=membersDict, president=UUID)
-        # 存储写入
-        self.add_guild_and_save(guildObj)
-        # 提示
-        self.api.do_send_player_msg(playerName, "§e[公会系统] §a创建成功！快邀请其他小伙伴加入公会吧！")
-        # 更新分数
-        self.api.set_player_score(playerName, "guildLevel", 1)
+        guildObj = guild.getByUUID(UUID)
+        # 是否拥有公会
+        if not guildObj:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
+        # 打印头部
+        self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §b公会营地")
+        # 打印选项列表
+        self.api.do_send_player_msg(playerName, "§l§61 §ecreate §r§9[费用:公会贡献*50w]§e[§a公会管理§e+]§b以当前位置为中心创建一个200*200的公会营地")
+        self.api.do_send_player_msg(playerName, "§l§62 §elist §r§b获取当前公会的营地列表，包含传送与删除功能")
+        # 打印尾部
+        self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入")
+        # 获取玩家选择
+        select_1 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+        # 功能项
+        if select_1 in ['1', 'create']:
+            # 要求玩家输入营地名
+            campName = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请为公会营地起个名字吧！(§e不能输入空格哦§b)：").input[0]
+            # 判断是否重名
+            if camp.getByName(campName):
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c已经存在这个名字的公会营地啦！")
+                return
+            # 权限验证
+            if player.getPowerByUUID(UUID) < 3:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理§c或以上")
+                return
+            # 判断是否达到营地数量上限
+            if len(guildObj.camps) >= guildObj.level - 1:
+                self.api.do_send_player_msg(playerName, f"§e[公会系统] §c创建失败！当前公会等级只允许创建{guildObj.level - 1}个公会营地哦！")
+                return
+            # 判断附近是否存在公会区域
+            if guild.hasGuildNearby(self.api.get_player_pos(playerName)):
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！附近存在其他公会！")
+                return
+            # 判断是否符合选择器
+            if self.api.do_send_ws_cmd(f"testfor @a[name=\"{playerName}\",m=!a,scores={{ID=1..,dim=1}},tag=!保护区域]").result.SuccessCount < 1:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你当前位于主世界资源区哦！")
+                return
+            # 尝试扣除贡献
+            if guildObj.contribute < 500000:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c升级失败，公会贡献不足！")
+                return
+            guildObj.contribute -= 500000
+            # 新建营地对象
+            campObj = camp(name=campName, guildName=guildObj.name, pos=self.api.get_player_pos(playerName))
+            # 存入到公会对象
+            guildObj.camps.update({campObj.name: campObj.__dict__})
+            # 存储写入
+            self.add_guild_and_save(guildObj)
+            # 提示
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §a创建成功！快通知其他会员一起建设新的公会营地吧！")
+        elif select_1 in ['2', 'list']:
+            # 打印头部
+            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §b公会营地")
+            # 列出营地
+            campList=[]
+            for data in guildObj.camps.values():
+                campList.append(data)
+                self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
+            if len(campList) == 0:
+                self.api.do_send_player_msg(playerName, "§7暂未创建营地")
+            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入") 
+            # 获取玩家选择
+            try:
+                select_2 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个公会营地编号，进行下一步操作：").input[0]) - 1
+            except Exception:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
+                return
+            # 判断是否越界
+            if not 0 <= select_2 < len(campList):
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
+                return
+            # 打印头部
+            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §b公会营地")
+            self.api.do_send_player_msg(playerName, f"§7当前已选中公会营地：§e{campList[select_2]['name']}")
+            # 打印选项列表
+            self.api.do_send_player_msg(playerName, "§l§61 §eteleport §r§b前往该公会营地")
+            self.api.do_send_player_msg(playerName, "§l§62 §edelete §r§e[§a公会管理§e+]§r§b删除该公会营地")
+            # 打印尾部
+            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入")
+            # 获取玩家选择
+            select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+            # 功能项
+            if select_3 in ['1', 'teleport']:
+                # 发送传送指令
+                self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\"] {campList[select_2]['pos']['x']} {campList[select_2]['pos']['y']} {campList[select_2]['pos']['z']}")
+                self.api.do_send_player_msg(playerName, f"§e[公会系统] §b欢迎来到 §e{guildObj.name} §b的公会营地 - §a{campList[select_2]['name']}")
+            elif select_3 in ['2', 'delete']:
+                # 权限验证
+                if player.getPowerByUUID(UUID) < 3:
+                    self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§a公会管理")
+                    return
+                # 再次确认
+                if self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b若要删除公会营地，请输入§e立即删除§b继续进行该操作(§d确认后不可撤销§b)：").input[0] == '立即删除':
+                    # 删除公会营地
+                    guildObj.camps.pop(campList[select_2]['name'])
+                    # 存储写入
+                    self.add_guild_and_save(guildObj)
+                    self.api.do_send_player_msg(playerName, "§e[公会系统] §a你已成功删除该公会营地！")
+                else:
+                    self.api.do_send_player_msg(playerName, "§e[公会系统] §c确认失败！本次操作已中断！")
+            else:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
+        else:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
 
     # 菜单项-公会商店
     def menu_mall(self, input:PlayerInput):
@@ -412,6 +552,46 @@ class guildPlugin(object):
             self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] +gmall-exec")
             self.api.do_send_wo_cmd(f"execute @a[name=\"{playerName}\"] ~~~ tell @a[tag=omg] 1")
             self.api.execute_after(func=lambda:self.api.do_send_player_msg(playerName, '§e[公会系统] §b请输入§e[物品序号] [购买数量]§b来进行批量购买吧~'), delay_time=1)
+
+    # 菜单项-创建公会
+    def menu_create(self, input:PlayerInput):
+        playerName = input.Name
+        UUID = self.api.get_player_uuid(playerName)
+        # 要求玩家输入公会名
+        guildName = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请为公会起个名字吧！(§e不能输入空格哦§b)：").input[0]
+        # 判断是否重名
+        if guild.getByName(guildName):
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c这个名字已经被使用啦！")
+            return
+        # 判断是否已加入公会
+        if guild.getByUUID(UUID):
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c你当前已经加入一个公会了，不能进行创建哦！")
+            return
+        # 判断附近是否存在公会区域
+        if guild.hasGuildNearby(self.api.get_player_pos(playerName)):
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！附近存在其他公会！")
+            return
+        # 判断是否符合选择器
+        if self.api.do_send_ws_cmd(f"testfor @a[name=\"{playerName}\",m=!a,scores={{ID=1..,dim=1}},tag=!保护区域]").result.SuccessCount < 1:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你当前位于主世界资源区哦！")
+            return
+        # 判断是否扣费成功
+        if not self.api.remove_player_score(playerName, 'money', 500000):
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c创建失败！请确保你有足够的余额哦！")
+            return
+        # 新建玩家对象
+        playerObj = player(UUID=UUID, name=playerName, power=4)
+        # 新建会员字典
+        membersDict = {}
+        membersDict.update({playerObj.UUID: playerObj.__dict__})
+        # 新建公会对象
+        guildObj = guild(name=guildName, pos=self.api.get_player_pos(playerName), members=membersDict, president=UUID)
+        # 存储写入
+        self.add_guild_and_save(guildObj)
+        # 提示
+        self.api.do_send_player_msg(playerName, "§e[公会系统] §a创建成功！快邀请其他小伙伴加入公会吧！")
+        # 更新分数
+        self.api.set_player_score(playerName, "guildLevel", 1)
 
     # 菜单项-退出公会
     def menu_leave(self, input:PlayerInput):
@@ -448,12 +628,6 @@ class guildPlugin(object):
     def menu_visit(self, input:PlayerInput):
         playerName = input.Name
         self.api.do_send_player_msg(playerName, "§a简介：高级会员+可以邀请非本公会的玩家进入公会区域，受邀请玩家将不受公会保护的约束，但无法享有公会增益效果。公会管理+可以禁用此项功能")
-        self.api.do_send_player_msg(playerName, "§e咕咕咕！打钱可以助力鸽子开发 (")
-
-    # 管理菜单项-公会营地
-    def menu_camp(self, input:PlayerInput):
-        playerName = input.Name
-        self.api.do_send_player_msg(playerName, "§a简介：可以使用公会贡献购买主区域外的额外保护区域；可拥有营地的个数分别为：1， 2， 3；保护范围固定为200")
         self.api.do_send_player_msg(playerName, "§e咕咕咕！打钱可以助力鸽子开发 (")
 
     # 管理菜单项-公会增益
@@ -678,44 +852,48 @@ class guildPlugin(object):
 
     # 定时执行公会保护
     def protect(self):
-        while True:
-            # 循环间隔
-            time.sleep(2)
-            # 发送指令
-            response = self.api.do_send_ws_cmd("querytarget @a[tag=!omg,tag=!保护区域]")
-            try:
-                # 解析
-                for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
-                    # 解析
-                    playerUUID = data['uniqueId']
-                    playerName = self.api.get_player_name(playerUUID)
-                    playerPos = self.api.get_player_pos(playerName)
-                    # 尝试获取公会
-                    guildObj_1 = guild.getByPos(playerPos)
-                    guildObj_2 = guild.getByUUID(playerUUID)
-                    # 判断
-                    if guildObj_1:
-                        # 通用
-                        self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于公会区域 - §e{guildObj_1.name}")
-                        self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\"] add 公会区域")
-                        # 是否为所属公会
-                        if guildObj_1 is guildObj_2:
-                            # 如果玩家改名，此时会被更新
-                            if guildObj_1.members[playerUUID]['name'] is not playerName:
-                                guildObj_1.members[playerUUID]['name'] = playerName
-                                self.update_guild_and_save(guildObj_1)
+        # 发送指令
+        response = self.api.do_send_ws_cmd("querytarget @a[tag=!omg,tag=!保护区域]")
+        if not response.result.OutputMessages[0].Success:
+            return
+        # 逐个玩家解析检查
+        for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
+            # 解析出UUID与当前坐标
+            playerUUID = data['uniqueId']
+            playerPos = {"d": data['dimension'], "x": int(data['position']['x']), "y": int(data['position']['y']), "z": int(data['position']['z'])}
+            # 根据UUID获取玩家名
+            playerName = self.api.get_player_name(playerUUID)
+            # 尝试获取当前位置公会或营地对象
+            guildObj_current = guild.getByPos(playerPos)
+            campObj_current = camp.getByPos(playerPos)
+            # 判断
+            if guildObj_current or campObj_current:
+                # 通用
+                self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\"] add 公会区域")
+                if campObj_current:
+                    guildObj_current = guild.getByName(campObj_current.guildName)
+                    self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于 §e{guildObj_current.name} §b的公会营地 - §a{campObj_current.name}")
+                else:
+                    self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于公会区域 - §e{guildObj_current.name}")
+                # 是否为所属公会
+                if guildObj_current is guild.getByUUID(playerUUID):
+                    # 如果玩家改名，此时会被更新
+                    if guildObj_current.members[playerUUID]['name'] != playerName:
+                        guildObj_current.members[playerUUID]['name'] = playerName
+                        self.update_guild_and_save(guildObj_current)
+                else:
+                    if guildObj_current.isClosed:
+                        if campObj_current:
+                            board = camp.getBoard(campObj_current, playerPos)
                         else:
-                            if guildObj_1.isClosed:
-                                board = guild.getBoard(guildObj_1, playerPos)
-                                self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\",m=!c] {board['x']} {board['y']} {board['z']}")
-                                self.api.do_send_wo_cmd(f"titleraw @a[name=\"{playerName}\",m=!c] actionbar {{\"rawtext\":[{{\"text\":\"§c当前公会不允许非公会成员进入\"}}]}}")
-                            else:
-                                self.api.do_send_wo_cmd(f"gamemode a @a[name=\"{playerName}\",m=s]")
+                            board = guild.getBoard(guildObj_current, playerPos)
+                        self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\",m=!c] {board['x']} {board['y']} {board['z']}")
+                        self.api.do_send_wo_cmd(f"titleraw @a[name=\"{playerName}\",m=!c] actionbar {{\"rawtext\":[{{\"text\":\"§c当前公会区域不允许不受邀请的非公会成员进入\"}}]}}")
                     else:
-                        self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}},tag=公会区域] actionbar §b已离开公会区域")
-                        self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\",tag=公会区域] remove 公会区域")
-            except Exception:
-                pass
+                        self.api.do_send_wo_cmd(f"gamemode a @a[name=\"{playerName}\",m=s]")
+            else:
+                self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}},tag=公会区域] actionbar §b已离开公会区域")
+                self.api.do_send_wo_cmd(f"tag @a[name=\"{playerName}\",tag=公会区域] remove 公会区域")
 
     def __call__(self, API:API):
         # 获取API
@@ -727,19 +905,19 @@ class guildPlugin(object):
         self.api.listen_omega_menu(triggers=["gcontribute"], argument_hint="", usage="消耗结晶碎片为公会增加贡献值", on_menu_invoked=self.menu_contribute)
         self.api.listen_omega_menu(triggers=["ginfo"], argument_hint="", usage="查询当前公会的信息", on_menu_invoked=self.menu_info)
         self.api.listen_omega_menu(triggers=["grank"], argument_hint="", usage="公会排名，且包含申请入会和OP管理功能", on_menu_invoked=self.menu_list)
+        self.api.listen_omega_menu(triggers=["gcamp"], argument_hint="", usage="§e[2级公会+]§b公会营地", on_menu_invoked=self.menu_camp)
         self.api.listen_omega_menu(triggers=["gmall"], argument_hint="", usage="§e[2级公会+]§b咕咕商城(Guild Edtion)", on_menu_invoked=self.menu_mall)
         self.api.listen_omega_menu(triggers=["gcreate"], argument_hint="", usage="§9[费用:结晶碎片*50w]§b在当前位置创建一个公会", on_menu_invoked=self.menu_create)
         self.api.listen_omega_menu(triggers=["gleave"], argument_hint="", usage="退出当前公会", on_menu_invoked=self.menu_leave)
         self.api.listen_omega_menu(triggers=["ghelp"], argument_hint="", usage="获取公会相关帮助", on_menu_invoked=self.menu_help)
         self.api.listen_omega_menu(triggers=["gvisit"], argument_hint="", usage="§e[§3高级会员§e+]§b设置与授权公会访客访问权限", on_menu_invoked=self.menu_visit)
-        self.api.listen_omega_menu(triggers=["gcamp"], argument_hint="", usage="§e[2级公会+][§a公会管理§e+]§b购买与设置公会营地", on_menu_invoked=self.menu_camp)
         self.api.listen_omega_menu(triggers=["ggain"], argument_hint="", usage="§e[2级公会+][§a公会管理§e+]§b购买公会增益时长", on_menu_invoked=self.menu_gain)
         self.api.listen_omega_menu(triggers=["gupgrade"], argument_hint="", usage="§9[费用:公会贡献*50w]§e[§3高级会员§e+]§b升级公会，最高升级至4级", on_menu_invoked=self.menu_upgrade)
         self.api.listen_omega_menu(triggers=["gclose"], argument_hint="", usage="§e[§a公会管理§e+]§b设置公会禁入，开启后非公会会员无法进入公会区域", on_menu_invoked=self.menu_close)
         self.api.listen_omega_menu(triggers=["gmanage"], argument_hint="", usage="§e[§a公会管理§e+]§b人事管理，包含踢出会员和设置会员权限", on_menu_invoked=self.menu_manger)
         self.api.listen_omega_menu(triggers=["gverify"], argument_hint="", usage="§e[§a公会管理§e+]§b查看并审批入会申请", on_menu_invoked=self.menu_verify)
         self.api.listen_omega_menu(triggers=["gdissolution"], argument_hint="", usage="§e[§6公会会长§e]§b解散公会", on_menu_invoked=self.menu_dissolution)
-        self.api.execute_in_individual_thread(self.protect)
+        self.api.execute_with_repeat(func=self.protect, repeat_time=2)
 
 omega.add_plugin(plugin=guildPlugin())
 omega.run(addr=None)

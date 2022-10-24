@@ -224,12 +224,7 @@ class api(object):
         try:
         # 解析
             for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
-                result = {}
-                result.update({"d": data['dimension']})
-                result.update({"x": int(data['position']['x'])})
-                result.update({"y": int(data['position']['y'])})
-                result.update({"z": int(data['position']['z'])})
-                return result
+                return {"d": data['dimension'], "x": int(data['position']['x']), "y": int(data['position']['y']), "z": int(data['position']['z'])}
         except Exception:
             return None
 
