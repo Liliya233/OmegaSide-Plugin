@@ -166,14 +166,6 @@ class guild:
                 return guild.getByName(gkey)
         return None
 
-    # 根据权限列表获取指定公会的玩家列表
-    def getMembersByPower(guildObj, powerList):
-        result = []
-        for data in guildObj.members.values():
-            if data['power'] in powerList:
-                result.append(data)
-        return result
-
     # 获取最近的公会边界
     def getBoard(guildObj, pos):
         # 根据公会等级设定范围
@@ -311,6 +303,8 @@ class guildPlugin(object):
         self.api.do_send_player_msg(playerName, f"§g公会贡献 §b- §a{guildObj.contribute}")
         self.api.do_send_player_msg(playerName, f"§g公会坐标 §b- §a({guildObj.pos['x']}, {guildObj.pos['y']}, {guildObj.pos['z']})")
         self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
+        self.api.do_send_player_msg(playerName, f"§g访客访问 §b- §a{'§c启用' if guildObj.isAccessed else '§a禁用'}")
+        # 营地信息
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
         campList=[]
         for data in guildObj.camps.values():
@@ -318,11 +312,20 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
         if len(campList) == 0:
             self.api.do_send_player_msg(playerName, "§7暂未创建营地")
+        # 会员信息
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
         guildList=[]
-        for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
+        for data in guildObj.members.values():
             guildList.append(data)
             self.api.do_send_player_msg(playerName, f"§l§6{len(guildList)} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
+        # 访客信息
+        self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b访客列表")
+        vistorList=[]
+        for data in guildObj.vistors.values():
+            vistorList.append(data)
+            self.api.do_send_player_msg(playerName, f"§l§6{len(vistorList)} §r§e{data['name']} §b- §a授权访客")
+        if len(vistorList) == 0:
+            self.api.do_send_player_msg(playerName, "§7暂无授权访客")
         self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
 
     # 菜单项-公会列表与功能
@@ -336,11 +339,12 @@ class guildPlugin(object):
         for data in guild.getSortedDict().values():
             guildNameList.append(data['name'])
             self.api.do_send_player_msg(playerName, f"§l§6{len(guildNameList)} §r§b公会名：§e{data['name']} §b- 等级：§a{data['level']}级 §b- 当前贡献：§9{data['contribute']} §b- 会长：§6{data['members'][data['president']]['name']}")
-        # 打印尾部
-        self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §d请根据下方提示进行输入")
+        if len(guildNameList) == 0:
+            self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §7暂无可选项")
+            return
         # 获取玩家选择
         try:
-            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个公会编号，进行下一步操作：").input[0])
+            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD INFO - §d请输入一个公会编号：").input[0])
         except Exception:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
             return
@@ -356,10 +360,8 @@ class guildPlugin(object):
         self.api.do_send_player_msg(playerName, "§l§62 §equery §r§e[仅OP]§b查询该公会的详情信息")
         self.api.do_send_player_msg(playerName, "§l§63 §eteleport §r§e[仅OP]§b传送至该公会中心")
         self.api.do_send_player_msg(playerName, "§l§64 §eremove §r§e[仅OP]§b强制移除该公会")
-        # 打印尾部
-        self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §d请根据下方提示进行输入")
         # 获取玩家选择
-        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个公会编号，进行下一步操作：").input[0]
+        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD INFO - §d请输入一个公会编号：").input[0]
         # 功能项
         if select_2 in ['1', 'apply']:
             # 查询玩家是否有公会
@@ -376,7 +378,7 @@ class guildPlugin(object):
             guildObj_2.applicants.update({UUID: player(UUID=UUID, name=playerName).__dict__})
             self.update_guild_and_save(guildObj_2)
             # 提示
-            self.api.do_send_player_msg(playerName, "§e[公会系统] §a申请成功！请等待公会管理员进行审核！")
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §a申请成功！记得通知对方公会的管理员进行审核哦！")
         elif select_2 in ['2', 'query']:
             if self.api.get_player_permission(playerName) != "操作员":
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c当前选项仅OP可使用哦！")
@@ -391,6 +393,9 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, f"§g公会贡献 §b- §a{guildObj.contribute}")
             self.api.do_send_player_msg(playerName, f"§g公会坐标 §b- §a({guildObj.pos['x']}, {guildObj.pos['y']}, {guildObj.pos['z']})")
             self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
+            self.api.do_send_player_msg(playerName, f"§g访客访问 §b- §a{'§c启用' if guildObj.isAccessed else '§a禁用'}")
+            self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
+            # 营地信息
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
             campList=[]
             for data in guildObj.camps.values():
@@ -398,11 +403,20 @@ class guildPlugin(object):
                 self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
             if len(campList) == 0:
                 self.api.do_send_player_msg(playerName, "§7暂未创建营地")
+            # 会员信息
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b会员列表")
-            rank=0
-            for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
-                rank+=1
-                self.api.do_send_player_msg(playerName, f"§l§6{rank} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
+            guildList=[]
+            for data in guildObj.members.values():
+                guildList.append(data)
+                self.api.do_send_player_msg(playerName, f"§l§6{len(guildList)} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
+            # 访客信息
+            self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b访客列表")
+            vistorList=[]
+            for data in guildObj.vistors.values():
+                vistorList.append(data)
+                self.api.do_send_player_msg(playerName, f"§l§6{len(vistorList)} §r§e{data['name']} §b- §a授权访客")
+            if len(vistorList) == 0:
+                self.api.do_send_player_msg(playerName, "§7暂无授权访客")
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - 显示完毕")
         elif select_2 in ['3', 'teleport']:
             if self.api.get_player_permission(playerName) != "操作员":
@@ -439,10 +453,8 @@ class guildPlugin(object):
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §ecreate §r§9[费用:公会贡献*50w]§e[§a公会管理§e+]§b以当前位置为中心创建一个200*200的公会营地")
         self.api.do_send_player_msg(playerName, "§l§62 §elist §r§b获取当前公会的营地列表，包含传送与删除功能")
-        # 打印尾部
-        self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入")
         # 获取玩家选择
-        select_1 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+        select_1 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD CAMP - §d请输入一个选项编号：").input[0]
         # 功能项
         if select_1 in ['1', 'create']:
             # 要求玩家输入营地名
@@ -489,11 +501,11 @@ class guildPlugin(object):
                 campList.append(data)
                 self.api.do_send_player_msg(playerName, f"§l§6{len(campList)} §r§b名称：§e{data['name']} §b- 中心坐标：§a({data['pos']['x']}, {data['pos']['y']}, {data['pos']['z']})")
             if len(campList) == 0:
-                self.api.do_send_player_msg(playerName, "§7暂未创建营地")
-            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入") 
+                self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §7暂无可选项")
+                return
             # 获取玩家选择
             try:
-                select_2 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个公会营地编号，进行下一步操作：").input[0]) - 1
+                select_2 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD CAMP - §d请输入一个选项编号：").input[0]) - 1
             except Exception:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
                 return
@@ -507,10 +519,8 @@ class guildPlugin(object):
             # 打印选项列表
             self.api.do_send_player_msg(playerName, "§l§61 §eteleport §r§b前往该公会营地")
             self.api.do_send_player_msg(playerName, "§l§62 §edelete §r§e[§a公会管理§e+]§r§b删除该公会营地")
-            # 打印尾部
-            self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §d请根据下方提示进行输入")
             # 获取玩家选择
-            select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+            select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD CAMP - §d请输入一个选项编号：").input[0]
             # 功能项
             if select_3 in ['1', 'teleport']:
                 # 发送传送指令
@@ -627,8 +637,79 @@ class guildPlugin(object):
     # 管理菜单项-公会访客
     def menu_visit(self, input:PlayerInput):
         playerName = input.Name
-        self.api.do_send_player_msg(playerName, "§a简介：高级会员+可以邀请非本公会的玩家进入公会区域，受邀请玩家将不受公会保护的约束，但无法享有公会增益效果。公会管理+可以禁用此项功能")
-        self.api.do_send_player_msg(playerName, "§e咕咕咕！打钱可以助力鸽子开发 (")
+        UUID = self.api.get_player_uuid(playerName)
+        # 获取公会对象
+        guildObj = guild.getByUUID(UUID)
+        # 权限验证
+        if not guildObj or player.getPowerByUUID(UUID) < 2:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，公会权限需要达到§3高级会员§c或以上")
+            return
+        self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §b公会访客")
+        # 打印选项列表
+        self.api.do_send_player_msg(playerName, "§l§61 §einvite §r§e[§3高级会员§e+]§b授权非公会会员访问公会")
+        self.api.do_send_player_msg(playerName, "§l§61 §eremove §r§e[§3高级会员§e+]§b移除公会访客授权")
+        self.api.do_send_player_msg(playerName, "§l§63 §esetting §r§e[§a公会管理§e]§b设置是否启用该项功能")
+        # 获取玩家选择
+        select_1 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0]
+        if select_1 in ['1', 'invite']:
+            self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §b公会访客")
+            self.api.do_send_player_msg(playerName, "§c请注意，在手动移除授权之前，被授权玩家将一直持有访问公会的权限！")
+            playerList = []
+            for data in self.api.do_get_players_list():
+                # 公会会员与已授权访客将不在选择范围内
+                if data.uuid not in guildObj.members.keys() and data.uuid not in guildObj.vistors.keys():
+                    playerList.append(data)
+                    self.api.do_send_player_msg(playerName, f"§l§6{len(playerList)} §r§e{data.name} §b- §a可以邀请")
+            if len(playerList) == 0:
+                self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §7暂无可选项")
+                return
+            # 获取玩家选择
+            try:
+                select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0] - 1
+            except Exception:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
+                return
+            # 判断是否越界
+            if not 0 <= select_2 < len(playerList):
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
+                return
+            # 写入数据到公会访客字典
+            guildObj.vistors.update({playerList[select_2].uuid: player(UUID=playerList[select_2].uuid, name=playerList[select_2].name).__dict__})
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §a授权成功！TA畅通无阻地可以进入公会啦")
+            self.api.do_send_player_msg(playerList[select_2].name, f"§e[公会系统] §a你已被授予 §e{guildObj.name} §a公会访客访问权限")
+        elif select_1 in ['2', 'remove']:
+            self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §b公会访客")
+            playerList = []
+            for data in guildObj.vistors.values():
+                playerList.append(data)
+                self.api.do_send_player_msg(playerName, f"§l§6{len(playerList)} §r§e{data['name']} §b- §a可以移除")
+            if len(playerList) == 0:
+                self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §7暂无可选项")
+                return
+            # 获取玩家选择
+            try:
+                select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0] - 1
+            except Exception:
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
+                return
+            # 判断是否越界
+            if not 0 <= select_2 < len(playerList):
+                self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
+                return
+            # 写入数据到公会访客字典
+            guildObj.vistors.pop(playerList[select_2]['name'])
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §a移除成功！TA将受到公会保护的限制")
+        elif select_1 in ['3', 'setting']:
+            # 状态更新
+            guildObj.isAccessed = False if guildObj.isAccessed else True
+            # 存储写入
+            self.update_guild_and_save(guildObj)
+            self.api.do_send_player_msg(playerName, f"§e[公会系统] §a更改成功！当前公会访客访问设置为：§e{'§c启用' if guildObj.isAccessed else '§a禁用'}")
+        else:
+            self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
+            return
+        # 存储写入
+        self.update_guild_and_save(guildObj)
 
     # 管理菜单项-公会增益
     def menu_gain(self, input:PlayerInput):
@@ -692,13 +773,12 @@ class guildPlugin(object):
         # 列出会员
         self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §b会员管理")
         playerUUIDList=[]
-        for data in guild.getMembersByPower(guildObj, [1, 2, 3, 4]):
+        for data in guildObj.members.values():
             playerUUIDList.append(data['UUID'])
-            self.api.do_send_player_msg(playerName, f"§l§6{len(playerUUIDList)}.§r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
-        self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §d请根据下方提示进行输入")
+            self.api.do_send_player_msg(playerName, f"§l§6{len(playerUUIDList)} §r§e{data['name']} §b- {param.powerNameList[data['power'] - 1]} §b- §9贡献*{data['contribute']}")
         # 获取玩家选择
         try:
-            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0]) - 1
+            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD MANAGE - §d请输入一个玩家编号：").input[0]) - 1
         except Exception:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
             return
@@ -712,10 +792,8 @@ class guildPlugin(object):
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §eremove §r§e[§a公会管理§e+]§b将该名会员移出公会")
         self.api.do_send_player_msg(playerName, "§l§62 §esetpower §r§e[§6公会会长§e]§b设置该名会员的权限")
-        # 打印尾部
-        self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §d请根据下方提示进行输入")
         # 获取玩家选择
-        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD MANAGE - §d请输入一个选项编号：").input[0]
         # 功能项
         if select_2 in ['1', 'remove']:
             # 权限验证
@@ -752,10 +830,8 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, "§l§61 §eordinary §r§b将该名会员的权限设置为§7普通会员")
             self.api.do_send_player_msg(playerName, "§l§62 §esenior §r§b将该名会员的权限设置为§3高级会员")
             self.api.do_send_player_msg(playerName, "§l§63 §emanagement §r§b将该名会员的权限设置为§a公会管理")
-            # 打印尾部
-            self.api.do_send_player_msg(playerName, "§l§aGUILD MANAGE - §d请根据下方提示进行输入")
             # 获取玩家选择
-            select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入要设置的权限：").input[0]
+            select_3 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD MANAGE - §d请输入要设置的权限：").input[0]
             pl = player.getByUUID(playerUUIDList[select_1])
             if select_3 in ['1', 'ordinary']:
                 pl.power = 1
@@ -788,11 +864,13 @@ class guildPlugin(object):
         playerList=[]
         for data in guild.getApplicants(guildObj):
             playerList.append(data)
-            self.api.do_send_player_msg(playerName, f"§l§6{len(playerList)}.§r§e{data['name']} §b- §c等待审批")
-        self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §d请根据下方提示进行输入")
+            self.api.do_send_player_msg(playerName, f"§l§6{len(playerList)} §r§e{data['name']} §b- §c等待审批")
+        if len(playerList) == 0:
+            self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §7暂无可选项")
+            return
         # 获取玩家选择
         try:
-            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个玩家编号，进行下一步操作：").input[0]) - 1
+            select_1 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VERIFY - §d请输入一个玩家编号：").input[0]) - 1
         except Exception:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
             return
@@ -808,10 +886,8 @@ class guildPlugin(object):
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §eallow §r§b同意该入会申请")
         self.api.do_send_player_msg(playerName, "§l§62 §edeny §r§b拒绝该入会申请")
-        # 打印尾部
-        self.api.do_send_player_msg(playerName, "§l§aGUILD VERIFY - §d请根据下方提示进行输入")
         # 获取玩家选择
-        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§e[公会系统] §b请输入一个选项编号，进行下一步操作：").input[0]
+        select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VERIFY - §d请输入一个选项编号：").input[0]
         # 功能项
         if select_2 in ['1', 'allow']:
             selected_pl['power'] = 1
@@ -882,6 +958,10 @@ class guildPlugin(object):
                         guildObj_current.members[playerUUID]['name'] = playerName
                         self.update_guild_and_save(guildObj_current)
                 else:
+                    # 公会授权访客
+                    if guildObj_current.isvisible and playerUUID in guildObj_current.vistors.keys():
+                        return
+                    # 公会禁入
                     if guildObj_current.isClosed:
                         if campObj_current:
                             board = camp.getBoard(campObj_current, playerPos)
