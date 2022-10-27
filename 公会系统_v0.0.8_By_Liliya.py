@@ -394,7 +394,6 @@ class guildPlugin(object):
             self.api.do_send_player_msg(playerName, f"§g公会坐标 §b- §a({guildObj.pos['x']}, {guildObj.pos['y']}, {guildObj.pos['z']})")
             self.api.do_send_player_msg(playerName, f"§g禁入状态 §b- §a{'§c启用' if guildObj.isClosed else '§a禁用'}")
             self.api.do_send_player_msg(playerName, f"§g访客访问 §b- §a{'§c启用' if guildObj.isAccessed else '§a禁用'}")
-            self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
             # 营地信息
             self.api.do_send_player_msg(playerName, "§l§aGUILD INFO - §b营地列表")
             campList=[]
@@ -448,6 +447,7 @@ class guildPlugin(object):
         # 是否拥有公会
         if not guildObj:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，你当前未加入任何公会哦！")
+            return
         # 打印头部
         self.api.do_send_player_msg(playerName, "§l§aGUILD CAMP - §b公会营地")
         # 打印选项列表
@@ -628,12 +628,6 @@ class guildPlugin(object):
         else:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c确认失败！本次操作已中断！")
 
-    # 菜单项-公会帮助
-    def menu_help(self, input:PlayerInput):
-        playerName = input.Name
-        self.api.do_send_player_msg(playerName, "§a简介：显示公会帮助指南，将在其他功能完成后进行编写")
-        self.api.do_send_player_msg(playerName, "§e咕咕咕！打钱可以助力鸽子开发 (")
-
     # 管理菜单项-公会访客
     def menu_visit(self, input:PlayerInput):
         playerName = input.Name
@@ -710,12 +704,6 @@ class guildPlugin(object):
             return
         # 存储写入
         self.update_guild_and_save(guildObj)
-
-    # 管理菜单项-公会增益
-    def menu_gain(self, input:PlayerInput):
-        playerName = input.Name
-        self.api.do_send_player_msg(playerName, "§a简介：在公会区域内(包括营地)，为全体公会会员提供增益效果，公会访客不适用公会增益；可以使用公会贡献购买一定时长的增益效果")
-        self.api.do_send_player_msg(playerName, "§e咕咕咕！打钱可以助力鸽子开发 (")
 
     # 管理菜单项-升级公会
     def menu_upgrade(self, input:PlayerInput):
@@ -989,15 +977,12 @@ class guildPlugin(object):
         self.api.listen_omega_menu(triggers=["gmall"], argument_hint="", usage="§e[2级公会+]§b咕咕商城(Guild Edtion)", on_menu_invoked=self.menu_mall)
         self.api.listen_omega_menu(triggers=["gcreate"], argument_hint="", usage="§9[费用:结晶碎片*50w]§b在当前位置创建一个公会", on_menu_invoked=self.menu_create)
         self.api.listen_omega_menu(triggers=["gleave"], argument_hint="", usage="退出当前公会", on_menu_invoked=self.menu_leave)
-        self.api.listen_omega_menu(triggers=["ghelp"], argument_hint="", usage="获取公会相关帮助", on_menu_invoked=self.menu_help)
         self.api.listen_omega_menu(triggers=["gvisit"], argument_hint="", usage="§e[§3高级会员§e+]§b设置与授权公会访客访问权限", on_menu_invoked=self.menu_visit)
-        self.api.listen_omega_menu(triggers=["ggain"], argument_hint="", usage="§e[2级公会+][§a公会管理§e+]§b购买公会增益时长", on_menu_invoked=self.menu_gain)
         self.api.listen_omega_menu(triggers=["gupgrade"], argument_hint="", usage="§9[费用:公会贡献*50w]§e[§3高级会员§e+]§b升级公会，最高升级至4级", on_menu_invoked=self.menu_upgrade)
         self.api.listen_omega_menu(triggers=["gclose"], argument_hint="", usage="§e[§a公会管理§e+]§b设置公会禁入，开启后非公会会员无法进入公会区域", on_menu_invoked=self.menu_close)
         self.api.listen_omega_menu(triggers=["gmanage"], argument_hint="", usage="§e[§a公会管理§e+]§b人事管理，包含踢出会员和设置会员权限", on_menu_invoked=self.menu_manger)
         self.api.listen_omega_menu(triggers=["gverify"], argument_hint="", usage="§e[§a公会管理§e+]§b查看并审批入会申请", on_menu_invoked=self.menu_verify)
         self.api.listen_omega_menu(triggers=["gdissolution"], argument_hint="", usage="§e[§6公会会长§e]§b解散公会", on_menu_invoked=self.menu_dissolution)
         self.api.execute_with_repeat(func=self.protect, repeat_time=2)
-
 omega.add_plugin(plugin=guildPlugin())
 omega.run(addr=None)
