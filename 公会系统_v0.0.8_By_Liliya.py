@@ -553,7 +553,7 @@ class guildPlugin(object):
         # 获取公会对象
         guildObj = guild.getByUUID(UUID)
         # 判断是否拥有公会
-        if not guildObj or player.getPowerByUUID(UUID) < 2:
+        if not guildObj or guildObj.level < 2:
             self.api.do_send_player_msg(playerName, "§e[公会系统] §c无法使用此功能，只有2级或以上公会的会员才能使用哦！")
             return
         # 同步计分板
@@ -947,7 +947,7 @@ class guildPlugin(object):
                         self.update_guild_and_save(guildObj_current)
                 else:
                     # 公会授权访客
-                    if guildObj_current.isvisible and playerUUID in guildObj_current.vistors.keys():
+                    if guildObj_current.isAccessed and playerUUID in guildObj_current.vistors.keys():
                         return
                     # 公会禁入
                     if guildObj_current.isClosed:
