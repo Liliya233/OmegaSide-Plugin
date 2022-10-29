@@ -641,7 +641,7 @@ class guildPlugin(object):
         self.api.do_send_player_msg(playerName, "§l§aGUILD VISIT - §b公会访客")
         # 打印选项列表
         self.api.do_send_player_msg(playerName, "§l§61 §einvite §r§e[§3高级会员§e+]§b授权非公会会员访问公会")
-        self.api.do_send_player_msg(playerName, "§l§61 §eremove §r§e[§3高级会员§e+]§b移除公会访客授权")
+        self.api.do_send_player_msg(playerName, "§l§62 §eremove §r§e[§3高级会员§e+]§b移除公会访客授权")
         self.api.do_send_player_msg(playerName, "§l§63 §esetting §r§e[§a公会管理§e]§b设置是否启用该项功能")
         # 获取玩家选择
         select_1 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0]
@@ -659,7 +659,7 @@ class guildPlugin(object):
                 return
             # 获取玩家选择
             try:
-                select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0] - 1
+                select_2 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0]) - 1
             except Exception:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
                 return
@@ -682,7 +682,7 @@ class guildPlugin(object):
                 return
             # 获取玩家选择
             try:
-                select_2 = self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0] - 1
+                select_2 = int(self.api.do_get_get_player_next_param_input(playerName, hint="§l§aGUILD VISIT - §d请输入一个选项编号：").input[0]) - 1
             except Exception:
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c只能输入编号哦！")
                 return
@@ -691,7 +691,7 @@ class guildPlugin(object):
                 self.api.do_send_player_msg(playerName, "§e[公会系统] §c不存在这个选项哦！")
                 return
             # 写入数据到公会访客字典
-            guildObj.vistors.pop(playerList[select_2]['name'])
+            guildObj.vistors.pop(playerList[select_2]['UUID'])
             self.api.do_send_player_msg(playerName, "§e[公会系统] §a移除成功！TA将受到公会保护的限制")
         elif select_1 in ['3', 'setting']:
             # 状态更新
@@ -941,7 +941,7 @@ class guildPlugin(object):
                     self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于公会区域 - §e{guildObj_current.name}")
                 # 是否为所属公会
                 guildObj_join = guild.getByUUID(playerUUID)
-                if guildObj_join is not None and guildObj_join.name == guild.getByUUID(playerUUID).name:
+                if guildObj_join and guildObj_current.name == guildObj_join.name:
                     # 如果玩家改名，此时会被更新
                     if guildObj_current.members[playerUUID]['name'] != playerName:
                         guildObj_current.members[playerUUID]['name'] = playerName
