@@ -940,7 +940,8 @@ class guildPlugin(object):
                 else:
                     self.api.do_send_wo_cmd(f"title @a[name=\"{playerName}\",scores={{menu=0}}] actionbar §b当前位于公会区域 - §e{guildObj_current.name}")
                 # 是否为所属公会
-                if guildObj_current is guild.getByUUID(playerUUID):
+                guildObj_join = guild.getByUUID(playerUUID)
+                if guildObj_join is not None and guildObj_join.name == guild.getByUUID(playerUUID).name:
                     # 如果玩家改名，此时会被更新
                     if guildObj_current.members[playerUUID]['name'] != playerName:
                         guildObj_current.members[playerUUID]['name'] = playerName
@@ -956,6 +957,8 @@ class guildPlugin(object):
                         else:
                             board = guild.getBoard(guildObj_current, playerPos)
                         self.api.do_send_wo_cmd(f"tp @a[name=\"{playerName}\",m=!c] {board['x']} {board['y']} {board['z']}")
+                        self.api.do_send_wo_cmd(f"spreadplayers {board['x']} {board['z']} 0 1 @a[name=\"{playerName}\",m=!c]")
+                        self.api.do_send_wo_cmd(f"effect @a[name=\"{playerName}\",m=!c] slow_falling 45 0 true")
                         self.api.do_send_wo_cmd(f"titleraw @a[name=\"{playerName}\",m=!c] actionbar {{\"rawtext\":[{{\"text\":\"§c当前公会区域不允许不受邀请的非公会成员进入\"}}]}}")
                     else:
                         self.api.do_send_wo_cmd(f"gamemode a @a[name=\"{playerName}\",m=s]")
