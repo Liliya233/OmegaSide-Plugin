@@ -221,12 +221,25 @@ class api(object):
     def get_player_pos(self, name):
         # 发送指令
         response = self.do_send_ws_cmd(f"querytarget @a[name=\"{name}\"]")
-        try:
-        # 解析
-            for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
-                return {"d": data['dimension'], "x": int(data['position']['x']), "y": int(data['position']['y']), "z": int(data['position']['z'])}
-        except Exception:
+        # 没有目标则不处理
+        if not response.result.OutputMessages[0].Success:
             return None
+        # 解析
+        for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
+            return {"d": data['dimension'], "x": int(data['position']['x']), "y": int(data['position']['y']), "z": int(data['position']['z'])}
+        return None
+
+    # 根据玩家名查询yRot
+    def get_player_yRot(self, name):
+        # 发送指令
+        response = self.do_send_ws_cmd(f"querytarget @a[name=\"{name}\"]")
+        # 没有目标则不处理
+        if not response.result.OutputMessages[0].Success:
+            return None
+        # 解析
+        for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
+            return data['yRot']
+        return None
 
     # 获取玩家分数
     def get_player_score(self, name, scoreboard):
