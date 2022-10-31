@@ -75,7 +75,7 @@ class plugin(object):
                 self.kick(playerName)
             else:
                 # 连续被踢出5次以上，交由Omega执行临时封禁
-                self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add ban 35")
+                self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add ban 2100")
 
     def deal_expire(self, dict):
         for k in list(dict.keys()):
@@ -96,6 +96,7 @@ class plugin(object):
                 if playerObj.UUID in self.dict_yRot.keys():
                     if round(playerObj.yRot, 2) == round(self.dict_yRot[playerObj.UUID].yRot, 2) or 359 < abs(playerObj.yRot)+abs(self.dict_yRot[playerObj.UUID].yRot) < 361:
                         playerObj.time = self.dict_yRot[playerObj.UUID].time + 1
+                        playerObj.fail = self.dict_yRot[playerObj.UUID].fail
                     if playerObj.time > random.randrange(30, 45):
                         self.api.execute_in_individual_thread(self.verify, playerObj)
                 self.dict_yRot.update({data['uniqueId']: playerObj})
@@ -113,6 +114,7 @@ class plugin(object):
                 if playerObj.UUID in self.dict_distance.keys():
                     if pow(pow(playerObj.posx-self.dict_distance[playerObj.UUID].posx, 2)+pow(playerObj.posz-self.dict_distance[playerObj.UUID].posz, 2), 0.5) < 200:
                         playerObj.time = self.dict_distance[playerObj.UUID].time + 1
+                        playerObj.fail = self.dict_distance[playerObj.UUID].fail
                     if playerObj.time > random.randrange(30, 45):
                         self.api.execute_in_individual_thread(self.verify, playerObj)
                 self.dict_distance.update({data['uniqueId']: playerObj})
