@@ -48,7 +48,7 @@ class plugin(object):
                 input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
             if input.input[0] == str(x+y):
                 # 误触发不给补偿可不好（
-                self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add money 200")
+                self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" money 200")
                 self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励:§9结晶碎片*200")
                 return True
             else:
@@ -75,7 +75,7 @@ class plugin(object):
                 self.kick(playerName)
             else:
                 # 连续被踢出5次以上，交由Omega执行临时封禁
-                self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add ban 2100")
+                self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" ban 2100")
 
     def deal_expire(self, dict):
         for k in list(dict.keys()):
