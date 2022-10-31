@@ -40,10 +40,10 @@ class plugin(object):
         while True:
             x = random.randrange(1, 25)
             y = random.randrange(1, 25)
-            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
+            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
             if input.err == "player busy":
                 self.api.do_send_ws_cmd(f"execute \"{playerName}\" ~~~ tell @a[tag=omg] 取消")
-                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
+                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
             if input.input[0] == str(x+y):
                 # 误触发不给补偿可不好（
                 self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add money 200")
