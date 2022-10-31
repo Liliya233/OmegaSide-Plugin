@@ -11,7 +11,7 @@ install_lib(lib_name="func_timeout",lib_install_name="func_timeout")
 import func_timeout
 
 class player(object):
-    def __init__(self, UUID='', yRot='', posx='', posz='', time=1, expire=15):
+    def __init__(self, UUID='', yRot='', posx='', posz='', time=1, expire=30):
         # UUID
         self.UUID = UUID
         # 上次视角
@@ -30,11 +30,11 @@ class plugin(object):
         # 数据记录
         self.dict_yRot=dict()
         self.dict_distance=dict()
-        
+
     def kick(self, playerName):
         self.api.do_send_wo_cmd(f"kick \"{playerName}\" §c疑似长时间挂机，请重新登录")
 
-    @func_timeout.func_set_timeout(30)
+    @func_timeout.func_set_timeout(60)
     def verify_in_time(self, playerName):
         chance = 3
         while True:
@@ -42,12 +42,12 @@ class plugin(object):
             y = random.randrange(1, 25)
             input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
             if input.err == "player busy":
-                self.api.do_send_player_cmd(f"execute \"{playerName}\" ~~~ tell @a[tag=omg] 取消")
+                self.api.do_send_ws_cmd(f"execute \"{playerName}\" ~~~ tell @a[tag=omg] 取消")
                 input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行验证，否则服务器将会断开连接！")
             if input.input[0] == str(x+y):
                 # 误触发不给补偿可不好（
                 self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add money 200")
-                self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励: §9结晶碎片*200")
+                self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励:§9结晶碎片*200")
                 return True
             else:
                 chance-=1
@@ -56,18 +56,22 @@ class plugin(object):
                 else:
                     return False
 
-    def verify(self, playerName):
+    def verify(self, playerObj):
+        playerName = self.api.get_player_name(playerObj.UUID)
         try:
             passed = self.verify_in_time(playerName)
         except func_timeout.exceptions.FunctionTimedOut:
             passed = False
-        if not passed:
+        if passed:
+            playerObj.time = 0
+        else:
+            playerObj.time = 25
             self.kick(playerName)
 
     def deal_expire(self, dict):
-        for k, v in dict.items():
-            v.expire-=1
-            if v.expire < 1:
+        for k in list(dict.keys()):
+            dict[k].expire-=1
+            if dict[k].expire < 1:
                 dict.pop(k)
         return dict
 
@@ -83,13 +87,12 @@ class plugin(object):
                 if playerObj.UUID in self.dict_yRot.keys():
                     if round(playerObj.yRot, 2) == round(self.dict_yRot[playerObj.UUID].yRot, 2) or 359 < abs(playerObj.yRot)+abs(self.dict_yRot[playerObj.UUID].yRot) < 361:
                         playerObj.time = self.dict_yRot[playerObj.UUID].time + 1
-                    if playerObj.time > random.randrange(15, 30):
-                        self.api.execute_in_individual_thread(self.verify, self.api.get_player_name(playerObj.UUID))
-                        playerObj.time = 0
+                    if playerObj.time > random.randrange(30, 45):
+                        self.api.execute_in_individual_thread(self.verify, playerObj)
                 self.dict_yRot.update({data['uniqueId']: playerObj})
         # 更新过期时间
         self.dict_yRot = self.deal_expire(self.dict_yRot)
-    
+
     # 并非精确检测，应配合验证码使用
     def detect_distance(self):
         # 发送指令
@@ -101,9 +104,8 @@ class plugin(object):
                 if playerObj.UUID in self.dict_distance.keys():
                     if pow(pow(playerObj.posx-self.dict_distance[playerObj.UUID].posx, 2)+pow(playerObj.posz-self.dict_distance[playerObj.UUID].posz, 2), 0.5) < 200:
                         playerObj.time = self.dict_distance[playerObj.UUID].time + 1
-                    if playerObj.time > random.randrange(15, 30):
-                        self.api.execute_in_individual_thread(self.verify, self.api.get_player_name(playerObj.UUID))
-                        playerObj.time = 0
+                    if playerObj.time > random.randrange(30, 45):
+                        self.api.execute_in_individual_thread(self.verify, playerObj)
                 self.dict_distance.update({data['uniqueId']: playerObj})
         # 更新过期时间
         self.dict_distance = self.deal_expire(self.dict_distance)
