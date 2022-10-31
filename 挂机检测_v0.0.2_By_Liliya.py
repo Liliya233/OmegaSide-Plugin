@@ -11,7 +11,7 @@ install_lib(lib_name="func_timeout",lib_install_name="func_timeout")
 import func_timeout
 
 class player(object):
-    def __init__(self, UUID='', yRot='', posx='', posz='', time=1, expire=30):
+    def __init__(self, UUID='', yRot='', posx='', posz='', time=1, expire=30, fail=0):
         # UUID
         self.UUID = UUID
         # 上次视角
@@ -24,6 +24,8 @@ class player(object):
         self.time = time
         # 保存时间 - 玩家退出登录后，记录应被保存一段时间
         self.expire = expire
+        # 连续验证失败次数
+        self.fail = fail
 
 class plugin(object):
     def __init__(self):
@@ -34,7 +36,7 @@ class plugin(object):
     def kick(self, playerName):
         self.api.do_send_wo_cmd(f"kick \"{playerName}\" §c疑似长时间挂机，请重新登录")
 
-    @func_timeout.func_set_timeout(60)
+    @func_timeout.func_set_timeout(55)
     def verify_in_time(self, playerName):
         chance = 3
         while True:
@@ -52,7 +54,7 @@ class plugin(object):
             else:
                 chance-=1
                 if chance > 0:
-                    self.api.do_send_player_msg(playerName, f"§e[挂机检测] §c输入错误，还剩下 §e{chance}次 §c验证次数")
+                    self.api.do_send_player_msg(playerName, f"§e[挂机检测] §c输入错误，还剩下 §e{chance}次 §c验证机会")
                 else:
                     return False
 
@@ -63,10 +65,17 @@ class plugin(object):
         except func_timeout.exceptions.FunctionTimedOut:
             passed = False
         if passed:
+            playerObj.fail = 0
             playerObj.time = 0
         else:
-            playerObj.time = 25
-            self.kick(playerName)
+            # 设置为上限值，登录之后将触发验证，以防止自动登录脚本
+            playerObj.time = 45
+            playerObj.fail+=1
+            if playerObj.fail < 6:
+                self.kick(playerName)
+            else:
+                # 连续被踢出5次以上，交由Omega执行临时封禁
+                self.api.do_send_wo_cmd(f"scoreboard \"{playerName}\" players add ban 35")
 
     def deal_expire(self, dict):
         for k in list(dict.keys()):
