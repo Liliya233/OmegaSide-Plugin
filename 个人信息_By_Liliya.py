@@ -1,4 +1,7 @@
 # 插件: 开
+# Name：个人信息
+# Version：0.0.1
+# Author：Liliya233
 from omega_side.python3_omega_sync import API
 from omega_side.python3_omega_sync import frame as omega
 from omega_side.python3_omega_sync.protocol import *

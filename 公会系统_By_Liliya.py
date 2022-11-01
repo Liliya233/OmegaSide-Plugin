@@ -1,4 +1,7 @@
 # 插件: 开
+# Name：公会系统
+# Version：0.0.8
+# Author：Liliya233
 import json
 from omega_side.python3_omega_sync import API
 from omega_side.python3_omega_sync import frame as omega

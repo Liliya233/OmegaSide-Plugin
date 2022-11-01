@@ -1,3 +1,6 @@
+# Name：API
+# Version：0.0.1
+# Author：Liliya233
 import threading
 import json
 from omega_side.python3_omega_sync import API
@@ -278,3 +281,7 @@ class api(object):
     def send_all_player_msg(self, msg):
         self.execute_after(func=lambda:self.do_send_wo_cmd(f"tellraw @a {{\"rawtext\":[{{\"text\":\"{msg}\"}}]}}"), delay_time=0.1)
         return True
+
+    # 获取两个坐标之间的距离
+    def get_distance(self, posx1, posy1, posz1, posx2, posy2, posz2):
+        return pow(pow(posx2-posx1, 2)+pow(posy2-posy1, 2)+pow(posz2-posz1, 2), 0.5)
