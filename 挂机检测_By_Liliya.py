@@ -62,16 +62,16 @@ class plugin(object):
         self.api.do_send_wo_cmd(f"tp \"{playerName}\" -3680 84 1917")
         self.api.do_send_player_msg(playerName, "§e[挂机检测] §c疑似长时间挂机，已将你传送至挂机池")
 
-    @func_timeout.func_set_timeout(60)
+    @func_timeout.func_set_timeout(29)
     def verify_in_time(self, playerName):
         chance = 3
         while True:
             x = random.randrange(1, 25)
             y = random.randrange(1, 25)
-            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
+            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
             if input.err == "player busy":
                 self.api.do_send_ws_cmd(f"execute \"{playerName}\" ~~~ tell @a[tag=omg] 取消")
-                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
+                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
             if input.input[0] == str(x+y):
                 # 误触发不给补偿可不好（
                 self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" money 200")
