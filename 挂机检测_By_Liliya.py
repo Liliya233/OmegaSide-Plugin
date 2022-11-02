@@ -27,7 +27,7 @@ class queryResult(object):
         self.posz = jsonData['position']['z']
 
 class player(object):
-    def __init__(self, resultObj:queryResult, time=1, expire=120, fail=0, isVerifying=False):
+    def __init__(self, resultObj:queryResult, time=1, expire=360, fail=0, isVerifying=False):
         # UUID
         self.uuid = resultObj.uuid
         # 上次视角
@@ -132,7 +132,7 @@ class plugin(object):
                         if not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
                             if detectFunc(playerObj, resultObj):
                                 playerObj.time += 1
-                            else:
+                            elif playerObj.fail == 0:
                                 playerObj.time = 0
                             if playerObj.time > random.randrange(30, 45):
                                 self.api.execute_in_individual_thread(self.verify, playerObj)
