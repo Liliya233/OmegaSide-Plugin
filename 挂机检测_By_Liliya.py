@@ -72,7 +72,7 @@ class plugin(object):
                     self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" money 200")
                     self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励:§9结晶碎片*200")
                     return True
-                elif input.input[0] == "verify_timeout":
+                elif input.input[0] == "AFK_verify_timeout":
                     return False
                 self.api.do_send_player_msg(playerName, f"§e[挂机检测] §c输入错误，还剩下 §e{chance}次 §c验证机会")
         return False
@@ -126,7 +126,7 @@ class plugin(object):
                     playerObj:player = self.dict[resultObj.uuid]
                     # PS: 玩家不处于验证状态且玩家不在挂机池范围内
                     if playerObj.isVerifying:
-                        self.api.do_send_ws_cmd(f"execute \"{self.api.get_player_name(playerObj.uuid)}\" ~~~ tell @a[tag=omg] verify_timeout")
+                        self.api.do_send_ws_cmd(f"execute \"{self.api.get_player_name(playerObj.uuid)}\" ~~~ tell @a[tag=omg] AFK_verify_timeout")
                     else:
                         # 如果不在挂机池范围内
                         if not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
@@ -134,7 +134,7 @@ class plugin(object):
                                 playerObj.time += 1
                             else:
                                 playerObj.time = 0
-                            if playerObj.time > random.randrange(1, 2):
+                            if playerObj.time > random.randrange(30, 45):
                                 self.api.execute_in_individual_thread(self.verify, playerObj)
                 else:
                     playerObj = player(resultObj)
