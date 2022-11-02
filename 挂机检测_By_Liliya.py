@@ -1,19 +1,15 @@
 # 插件: 开
 # Name：挂机检测
-# Version：0.0.3
+# Version：0.0.4
 # Author：Liliya233
 from typing import Callable
 from omega_side.python3_omega_sync import API
 from omega_side.python3_omega_sync import frame as omega
-from omega_side.python3_omega_sync.bootstrap import install_lib
 from omega_side.python3_omega_sync.protocol import *
 from API_By_Liliya import api
 import time
 import json
 import random
-
-install_lib(lib_name="func_timeout",lib_install_name="func_timeout")
-import func_timeout
 
 class queryResult(object):
     def __init__(self, jsonData):
@@ -56,42 +52,35 @@ class player(object):
 class plugin(object):
     def __init__(self):
         # 数据记录
-        self.dict=dict()
+        self.dict:dict[str, player]=dict()
 
     def punish(self, playerName):
         self.api.do_send_wo_cmd(f"tp \"{playerName}\" -3680 84 1917")
-        self.api.do_send_player_msg(playerName, "§e[挂机检测] §c疑似长时间挂机，已将你传送至挂机池")
+        self.api.do_send_player_msg(playerName, "§e[挂机检测] §c验证不通过，已将你传送至挂机池")
 
-    @func_timeout.func_set_timeout(29)
-    def verify_in_time(self, playerName):
-        chance = 3
-        while True:
+    def verify_method(self, playerName):
+        for chance in range(2, -1, -1):
             x = random.randrange(1, 25)
-            y = random.randrange(1, 25)
-            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
-            if input.err == "player busy":
+            y = random.randrange(1, 25)            
+            input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
+            if not input.success:
                 self.api.do_send_ws_cmd(f"execute \"{playerName}\" ~~~ tell @a[tag=omg] 取消")
-                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e30秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
-            if input.input[0] == str(x+y):
-                # 误触发不给补偿可不好（
-                self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" money 200")
-                self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励:§9结晶碎片*200")
-                return True
-            else:
-                chance-=1
-                if chance > 0:
-                    self.api.do_send_player_msg(playerName, f"§e[挂机检测] §c输入错误，还剩下 §e{chance}次 §c验证机会")
-                else:
+                input = self.api.do_get_get_player_next_param_input(playerName, f"§e[挂机检测] §c请在§e60秒内§c计算并发送 §e{x}+{y} §c进行人机验证")
+            if input.success:
+                if input.input[0] == str(x+y):
+                    # 误触发不给补偿可不好（
+                    self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" money 200")
+                    self.api.do_send_player_msg(playerName, "§e[挂机检测] §a验证成功！已获得奖励:§9结晶碎片*200")
+                    return True
+                elif input.input[0] == "verify_timeout":
                     return False
+                self.api.do_send_player_msg(playerName, f"§e[挂机检测] §c输入错误，还剩下 §e{chance}次 §c验证机会")
+        return False
 
     def verify(self, playerObj:player):
         playerObj.isVerifying = True
         playerName = self.api.get_player_name(playerObj.uuid)
-        try:
-            passed = self.verify_in_time(playerName)
-        except func_timeout.exceptions.FunctionTimedOut:
-            passed = False
-        if passed:
+        if self.verify_method(playerName):
             playerObj.fail = 0
             playerObj.time = 0
         else:
@@ -136,13 +125,17 @@ class plugin(object):
                 if resultObj.uuid in self.dict.keys():
                     playerObj:player = self.dict[resultObj.uuid]
                     # PS: 玩家不处于验证状态且玩家不在挂机池范围内
-                    if not playerObj.isVerifying and not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
-                        if detectFunc(playerObj, resultObj):
-                            playerObj.time += 1
-                        else:
-                            playerObj.time = 0
-                        if playerObj.time > random.randrange(30, 45):
-                            self.api.execute_in_individual_thread(self.verify, playerObj)
+                    if playerObj.isVerifying:
+                        self.api.do_send_ws_cmd(f"execute \"{self.api.get_player_name(playerObj.uuid)}\" ~~~ tell @a[tag=omg] verify_timeout")
+                    else:
+                        # 如果不在挂机池范围内
+                        if not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
+                            if detectFunc(playerObj, resultObj):
+                                playerObj.time += 1
+                            else:
+                                playerObj.time = 0
+                            if playerObj.time > random.randrange(1, 2):
+                                self.api.execute_in_individual_thread(self.verify, playerObj)
                 else:
                     playerObj = player(resultObj)
                 self.dict.update({playerObj.uuid: playerObj})
