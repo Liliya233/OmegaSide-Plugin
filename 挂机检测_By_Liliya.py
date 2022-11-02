@@ -139,6 +139,8 @@ class plugin(object):
                     if not playerObj.isVerifying and not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
                         if detectFunc(playerObj, resultObj):
                             playerObj.time += 1
+                        else:
+                            playerObj.time = 0
                         if playerObj.time > random.randrange(30, 45):
                             self.api.execute_in_individual_thread(self.verify, playerObj)
                 else:
