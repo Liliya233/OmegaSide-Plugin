@@ -98,6 +98,7 @@ class plugin(object):
     def deal_expire(self):
         for k in list(self.dict.keys()):
             self.dict[k].expire-=1
+            #print(f"[AFK] [{time.strftime('%H:%M:%S', time.localtime(time.time()))}] 昵称：{self.api.get_player_name(self.dict[k].uuid)}，挂机时间：{self.dict[k].time}，剩余有效：{self.dict[k].expire}，失败次数：{self.dict[k].fail}，正在验证：{self.dict[k].isVerifying}", flush=True)
             if self.dict[k].expire < 1:
                 self.dict.pop(k)
 
@@ -114,8 +115,6 @@ class plugin(object):
         return True
 
     def detect(self, detectFunc:Callable):
-        # 随机延迟一段时间
-        time.sleep(random.randrange(1, 30))
         # 发送指令
         response = self.api.do_send_ws_cmd("querytarget @a[tag=!omg]")
         # 没有目标则不处理
@@ -124,6 +123,7 @@ class plugin(object):
                 resultObj = queryResult(data)
                 if resultObj.uuid in self.dict.keys():
                     playerObj:player = self.dict[resultObj.uuid]
+                    playerObj.expire = 360
                     # PS: 玩家不处于验证状态且玩家不在挂机池范围内
                     if playerObj.isVerifying:
                         self.api.do_send_ws_cmd(f"execute \"{self.api.get_player_name(playerObj.uuid)}\" ~~~ tell @a[tag=omg] AFK_verify_timeout")
