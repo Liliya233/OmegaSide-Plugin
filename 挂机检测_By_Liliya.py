@@ -48,6 +48,20 @@ class player(object):
         self.fail = fail
         # 是否正在验证
         self.isVerifying = isVerifying
+    
+    def update(self, resultObj:queryResult):
+        # 上次视角
+        self.yRot = resultObj.yRot
+        # 上次所在维度
+        self.dim = resultObj.dim
+        # 上次X轴坐标
+        self.posx = resultObj.posx
+        # 上次Y轴坐标
+        self.posy = resultObj.posy
+        # 上次Z轴坐标
+        self.posz = resultObj.posz
+        # 保存时间
+        self.expire = 360
 
 class plugin(object):
     def __init__(self):
@@ -98,7 +112,7 @@ class plugin(object):
     def deal_expire(self):
         for k in list(self.dict.keys()):
             self.dict[k].expire-=1
-            #print(f"[AFK] [{time.strftime('%H:%M:%S', time.localtime(time.time()))}] 昵称：{self.api.get_player_name(self.dict[k].uuid)}，挂机时间：{self.dict[k].time}，剩余有效：{self.dict[k].expire}，失败次数：{self.dict[k].fail}，正在验证：{self.dict[k].isVerifying}", flush=True)
+            #print(f"[AFK] [{time.strftime('%H:%M:%S', time.localtime(time.time()+28800))}] 昵称：{self.api.get_player_name(self.dict[k].uuid)}，挂机时间：{self.dict[k].time}，剩余有效：{self.dict[k].expire}，失败次数：{self.dict[k].fail}，正在验证：{self.dict[k].isVerifying}", flush=True)
             if self.dict[k].expire < 1:
                 self.dict.pop(k)
 
@@ -123,10 +137,10 @@ class plugin(object):
                 resultObj = queryResult(data)
                 if resultObj.uuid in self.dict.keys():
                     playerObj:player = self.dict[resultObj.uuid]
-                    playerObj.expire = 360
                     # PS: 玩家不处于验证状态且玩家不在挂机池范围内
                     if playerObj.isVerifying:
                         self.api.do_send_ws_cmd(f"execute \"{self.api.get_player_name(playerObj.uuid)}\" ~~~ tell @a[tag=omg] AFK_verify_timeout")
+                        playerObj.isVerifying = False
                     else:
                         # 如果不在挂机池范围内
                         if not (resultObj.dim == 0 and self.api.get_distance(resultObj.posx, resultObj.posy, resultObj.posz, -3680, 84, 1917) < 30):
@@ -136,6 +150,7 @@ class plugin(object):
                                 playerObj.time = 0
                             if playerObj.time > random.randrange(30, 45):
                                 self.api.execute_in_individual_thread(self.verify, playerObj)
+                    playerObj.update(resultObj)
                 else:
                     playerObj = player(resultObj)
                 self.dict.update({playerObj.uuid: playerObj})
