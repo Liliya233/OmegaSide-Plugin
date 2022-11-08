@@ -31,8 +31,8 @@ class sleepDetect:
         else:
             self.api.send_all_player_msg(f"§b要想跳过黑夜或雷雨天，还需§e {int(plTotal/2)+1-plSlepping} §b名玩家进入睡眠")
         
-    # 接收到睡觉信息时进行处理
-    def dealIDText(self, packet):
+    # 接收到特定事件数据包时进行处理
+    def dealIDLevelEvent(self, packet):
         if packet.EventType == 9801:
             self.api.execute_in_individual_thread(self.isSatisfy, packet.EventData)
 
@@ -40,7 +40,7 @@ class sleepDetect:
         # 获取API
         self.api=api(API)
         # 注册监听
-        self.api.listen_mc_packet(pkt_type="IDLevelEvent", on_new_packet_cb=self.dealIDText)
+        self.api.listen_mc_packet(pkt_type="IDLevelEvent", on_new_packet_cb=self.dealIDLevelEvent)
 
 omega.add_plugin(plugin=sleepDetect())
 omega.run(addr=None)
