@@ -63,7 +63,7 @@ class player(object):
         # 保存时间
         self.expire = 360
 
-class plugin(object):
+class AFKDetect(object):
     def __init__(self):
         # 数据记录
         self.dict:dict[str, player]=dict()
@@ -105,7 +105,7 @@ class plugin(object):
             if playerObj.fail > 5:
                 # 当然，可以在多次验证失败后加入额外的操作，由于暂时不需要就将它注释掉了
                 # 连续被踢出5次以上，交由Omega执行临时封禁
-                #self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" ban 2100")
+                self.api.do_send_wo_cmd(f"scoreboard players add \"{playerName}\" ban 2100")
                 pass
         playerObj.isVerifying = False
 
@@ -163,5 +163,5 @@ class plugin(object):
         # 注册功能 - 应在此选择一个检测函数
         self.api.execute_with_repeat(self.detect, self.detect_distance, repeat_time=60)
 
-omega.add_plugin(plugin=plugin())
+omega.add_plugin(plugin=AFKDetect())
 omega.run(addr=None)
