@@ -7,6 +7,7 @@ from omega_side.python3_omega_sync import frame as omega
 from omega_side.python3_omega_sync.protocol import *
 from API_By_Liliya import api
 import time
+import math
 
 class sleepDetect:
     # 初始化
@@ -29,7 +30,7 @@ class sleepDetect:
             self.api.do_send_wo_cmd("time set 0")
             self.api.do_send_wo_cmd("weather clear")
         else:
-            self.api.send_all_player_msg(f"§b要想跳过黑夜或雷雨天，还需§e {int(plTotal/2)+1-plsleeping} §b名玩家进入睡眠")
+            self.api.send_all_player_msg(f"§b要想跳过黑夜或雷雨天，还需§e {math.ceil(plTotal*self.sleepPercentage)-plsleeping} §b名玩家进入睡眠")
         
     # 接收到特定事件数据包时进行处理
     def dealIDLevelEvent(self, packet):
