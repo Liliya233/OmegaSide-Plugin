@@ -8,6 +8,7 @@ from omega_side.python3_omega_sync.protocol import *
 from API_By_Liliya import api
 import time
 import math
+import json
 
 class sleepDetect:
     # 初始化
@@ -17,7 +18,13 @@ class sleepDetect:
     # 判断是否满足跳过条件
     def isSatisfy(self, eventData):
         # Mojang ??
-        plTotal , plsleeping= int(eventData) // 65536, int(eventData) % 65536
+        plTotal , plsleeping= 0, int(eventData) % 65536
+        # 获取主世界玩家数量
+        response = self.api.do_send_ws_cmd("querytarget @a")
+        if response.result.OutputMessages[0].Success:
+            for data in json.loads(response.result.OutputMessages[0].Parameters[0]):
+                if data['dimension'] == 0:
+                    plTotal+=1
         # 人数变动时也会触发此事件，加个辨别吧
         # PS：如果不处于夜晚或者雷雨天
         if not (12000 <= int(self.api.do_send_ws_cmd("time query daytime").result.OutputMessages[0].Parameters[0]) <= 24000
@@ -30,7 +37,7 @@ class sleepDetect:
             self.api.do_send_wo_cmd("time set 0")
             self.api.do_send_wo_cmd("weather clear")
         else:
-            self.api.send_all_player_msg(f"§b要想跳过黑夜或雷雨天，还需§e {math.ceil(plTotal*self.sleepPercentage)-plsleeping} §b名玩家进入睡眠")
+            self.api.do_send_wo_cmd(f"title @a actionbar §b要想跳过黑夜或雷雨天，还需§e {math.ceil(plTotal*self.sleepPercentage)-plsleeping} §b名玩家进入睡眠")
         
     # 接收到特定事件数据包时进行处理
     def dealIDLevelEvent(self, packet):
