@@ -14,11 +14,12 @@ class sleepDetect:
     # 初始化
     def __init__(self):
         self.sleepPercentage = 0.5
+        self.executing = False
 
     # 判断是否满足跳过条件
     def isSatisfy(self, eventData):
         # Mojang ??
-        plTotal , plsleeping= 0, int(eventData) % 65536
+        plTotal, plsleeping = 0, int(eventData)%65536
         # 获取主世界玩家数量
         response = self.api.do_send_ws_cmd("querytarget @a")
         if response.result.OutputMessages[0].Success:
@@ -32,16 +33,19 @@ class sleepDetect:
             return
         # 判断睡觉的玩家是否满足设定的比例值
         if plsleeping/plTotal >= self.sleepPercentage:
-            self.api.send_all_player_msg("§b半数玩家已睡眠，将跳过黑夜或雷雨天")
+            self.executing = True
+            self.api.send_all_player_msg("§b半数或以上的玩家处于睡觉状态，将跳过黑夜或雷雨天")
             time.sleep(5)
             self.api.do_send_wo_cmd("time set 0")
             self.api.do_send_wo_cmd("weather clear")
+            self.executing = False
         else:
-            self.api.do_send_wo_cmd(f"title @a actionbar §b要想跳过黑夜或雷雨天，还需§e {math.ceil(plTotal*self.sleepPercentage)-plsleeping} §b名玩家进入睡眠")
+            self.api.do_send_wo_cmd(f"title @a actionbar §b要想跳过黑夜或雷雨天，还需§e {math.ceil(plTotal*self.sleepPercentage)-plsleeping} §b名玩家进入睡觉状态")
         
     # 接收到特定事件数据包时进行处理
     def dealIDLevelEvent(self, packet):
-        if packet.EventType == 9801:
+        # 跳过正在进行时不进行处理
+        if not self.executing and packet.EventType == 9801:
             self.api.execute_in_individual_thread(self.isSatisfy, packet.EventData)
 
     def __call__(self, API:API):
