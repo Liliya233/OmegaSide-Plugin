@@ -32,7 +32,7 @@ class sleepDetect:
             or self.api.do_send_ws_cmd("weather query").result.OutputMessages[0].Parameters[0] == "%commands.weather.query.thunder"):
             return
         # 判断睡觉的玩家是否满足设定的比例值
-        if plsleeping/plTotal >= self.sleepPercentage:
+        if plTotal>0 and plsleeping/plTotal >= self.sleepPercentage:
             self.executing = True
             self.api.send_all_player_msg("§b半数或以上的玩家处于睡觉状态，将跳过黑夜或雷雨天")
             time.sleep(5)
